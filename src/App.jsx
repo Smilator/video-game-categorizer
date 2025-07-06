@@ -75,6 +75,14 @@ function App() {
 
   // Separate platforms into two categories
   const getPlatformCategories = () => {
+    // For non-authenticated users, show all platforms as "with games" so they can browse
+    if (!isAuthenticated) {
+      return {
+        platformsWithGames: platforms,
+        platformsWithoutGames: []
+      };
+    }
+
     const platformsWithGames = [];
     const platformsWithoutGames = [];
     
