@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Migration Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+        }
+        .error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Data Migration Tool</h1>
+        <p>This tool will migrate your localStorage data to the new database system.</p>
+
+        <div class="step">
+            <h3>Step 1: Enter Your Railway URL</h3>
+            <p><strong>How to find your Railway URL:</strong></p>
+            <ol>
+                <li>Go to your Railway dashboard at <a href="https://railway.app/dashboard" target="_blank" style="color: #4CAF50;">railway.app/dashboard</a></li>
+                <li>Click on your deployed app</li>
+                <li>Go to the "Deployments" tab</li>
+                <li>Click on your latest deployment</li>
+                <li>Copy the "Domain" URL (it should look like: https://your-app-name.railway.app)</li>
+            </ol>
+            <input type="text" id="railwayUrl" placeholder="https://your-app-name.railway.app" />
+            <button onclick="testConnection()">Test Connection</button>
+            <div id="connectionResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Check LocalStorage Data</h3>
+            <button onclick="checkLocalStorage()">Check LocalStorage</button>
+            <div id="localStorageResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Migrate Data</h3>
+            <button onclick="migrateData()" id="migrateBtn" disabled>Migrate to Database</button>
+            <div id="migrationResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Verify Migration</h3>
+            <button onclick="verifyMigration()">Verify Data</button>
+            <div id="verificationResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let railwayUrl = '';
+
+        // Auto-detect Railway URL if possible
+        function autoDetectRailwayUrl() {
+            const currentUrl = window.location.origin;
+            if (currentUrl.includes('railway.app')) {
+                document.getElementById('railwayUrl').value = currentUrl;
+                railwayUrl = currentUrl;
+            }
+        }
+
+        // Run auto-detection when page loads
+        window.addEventListener('load', autoDetectRailwayUrl);
+
+        function testConnection() {
+            const url = document.getElementById('railwayUrl').value.trim();
+            if (!url) {
+                showResult('connectionResult', 'Please enter your Railway URL', 'error');
+                return;
+            }
+
+            railwayUrl = url;
+            showResult('connectionResult', 'Testing connection...', '');
+
+            fetch(`${url}/api/health`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        showResult('connectionResult', `✅ Connection successful!\n${JSON.stringify(data, null, 2)}`, 'success');
+                        document.getElementById('migrateBtn').disabled = false;
+                    } catch (e) {
+                        showResult('connectionResult', `❌ Invalid JSON response: ${text.substring(0, 200)}...\n\nThis usually means the URL is incorrect or the server is not responding properly.`, 'error');
+                    }
+                })
+                .catch(error => {
+                    showResult('connectionResult', `❌ Connection failed: ${error.message}\n\nPlease check:\n1. Your Railway URL is correct\n2. Your Railway app is running\n3. The URL should look like: https://your-app-name.railway.app`, 'error');
+                });
+        }
+
+        function checkLocalStorage() {
+            const platformData = localStorage.getItem('platformData');
+            const processedGames = localStorage.getItem('processedGames');
+
+            let result = 'LocalStorage Data Found:\n\n';
+            
+            if (platformData) {
+                const data = JSON.parse(platformData);
+                result += `Platform Data:\n`;
+                result += `- Platforms with data: ${Object.keys(data).length}\n`;
+                Object.keys(data).forEach(platformId => {
+                    const platform = data[platformId];
+                    result += `  Platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted\n`;
+                });
+            } else {
+                result += `❌ No platform data found in localStorage\n`;
+            }
+
+            if (processedGames) {
+                const games = JSON.parse(processedGames);
+                result += `\nProcessed Games: ${games.length} games\n`;
+            } else {
+                result += `\n❌ No processed games data found in localStorage\n`;
+            }
+
+            showResult('localStorageResult', result, platformData ? 'success' : 'error');
+        }
+
+        function migrateData() {
+            if (!railwayUrl) {
+                showResult('migrationResult', 'Please test connection first', 'error');
+                return;
+            }
+
+            const platformData = localStorage.getItem('platformData');
+            if (!platformData) {
+                showResult('migrationResult', 'No data to migrate from localStorage', 'error');
+                return;
+            }
+
+            showResult('migrationResult', 'Starting migration...', '');
+
+            const data = JSON.parse(platformData);
+            const platforms = Object.keys(data);
+            let migratedCount = 0;
+            let errorCount = 0;
+
+            const migratePlatform = async (platformId) => {
+                try {
+                    const platform = data[platformId];
+                    const response = await fetch(`${railwayUrl}/api/platform-data/${platformId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            favorites: platform.favorites || [],
+                            deleted: platform.deleted || []
+                        }),
+                    });
+
+                    if (response.ok) {
+                        migratedCount++;
+                        showResult('migrationResult', `✅ Migrated platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted`, 'success');
+                    } else {
+                        const errorText = await response.text();
+                        errorCount++;
+                        showResult('migrationResult', `❌ Failed to migrate platform ${platformId}: ${response.status} - ${errorText}`, 'error');
+                    }
+                } catch (error) {
+                    errorCount++;
+                    showResult('migrationResult', `❌ Error migrating platform ${platformId}: ${error.message}`, 'error');
+                }
+            };
+
+            // Migrate all platforms
+            Promise.all(platforms.map(migratePlatform))
+                .then(() => {
+                    const finalResult = `Migration Complete!\n\n✅ Successfully migrated: ${migratedCount} platforms\n❌ Errors: ${errorCount} platforms\n\nTotal platforms processed: ${platforms.length}`;
+                    showResult('migrationResult', finalResult, errorCount === 0 ? 'success' : 'error');
+                });
+        }
+
+        function verifyMigration() {
+            if (!railwayUrl) {
+                showResult('verificationResult', 'Please test connection first', 'error');
+                return;
+            }
+
+            showResult('verificationResult', 'Verifying migration...', '');
+
+            fetch(`${railwayUrl}/api/platform-data`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        const platforms = Object.keys(data);
+                        let result = 'Database Verification:\n\n';
+                        
+                        if (platforms.length === 0) {
+                            result += '❌ No data found in database\n';
+                        } else {
+                            result += `✅ Found ${platforms.length} platforms in database:\n\n`;
+                            platforms.forEach(platformId => {
+                                const platform = data[platformId];
+                                result += `Platform ${platformId}:\n`;
+                                result += `  - Favorites: ${platform.favorites?.length || 0}\n`;
+                                result += `  - Deleted: ${platform.deleted?.length || 0}\n\n`;
+                            });
+                        }
+
+                        showResult('verificationResult', result, platforms.length > 0 ? 'success' : 'error');
+                    } catch (e) {
+                        showResult('verificationResult', `❌ Invalid JSON response: ${text.substring(0, 200)}...`, 'error');
+                    }
+                })
+                .catch(error => {
+                    showResult('verificationResult', `❌ Verification failed: ${error.message}`, 'error');
+                });
+        }
+
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+        }
+    </script>
+</body>
+</html> 

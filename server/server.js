@@ -283,15 +283,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'IGDB API proxy is running' });
 });
 
-// Serve migration and test tools
-app.get('/migrate-data.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../migrate-data.html'));
-});
-
-app.get('/test-railway.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../test-railway.html'));
-});
-
 // Serve React app in production
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
