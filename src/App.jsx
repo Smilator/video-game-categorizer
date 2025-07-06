@@ -753,17 +753,23 @@ function App() {
                 
                 <button 
                   className="btn btn-info" 
-                  onClick={() => {
-                    const debugInfo = `Current Database State:\n- Platforms with data: ${Object.keys(platformData).length}\n`;
-                    Object.keys(platformData).forEach(platformId => {
-                      const platform = platformData[platformId];
-                      debugInfo += `  Platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted\n`;
-                    });
-                    setMigrationStatus(debugInfo);
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/debug/database');
+                      const debugData = await response.json();
+                      const debugInfo = `Server Database State:\n- Platform count: ${debugData.platformCount}\n- Platforms: ${debugData.platforms.join(', ')}\n- Data size: ${debugData.dataSize} characters\n\nSample data:\n${JSON.stringify(debugData.sampleData, null, 2)}\n\nLocal State:\n- Platforms with data: ${Object.keys(platformData).length}\n`;
+                      Object.keys(platformData).forEach(platformId => {
+                        const platform = platformData[platformId];
+                        debugInfo += `  Platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted\n`;
+                      });
+                      setMigrationStatus(debugInfo);
+                    } catch (error) {
+                      setMigrationStatus(`Error checking database: ${error.message}`);
+                    }
                   }}
                 >
                   <Eye size={16} />
-                  Check Database
+                  Check Server DB
                 </button>
                 
                 <button 

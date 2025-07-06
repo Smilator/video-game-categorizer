@@ -87,12 +87,17 @@ async function loadPlatformData() {
   try {
     await ensureDataDirectory();
     const data = await fs.readFile(DB_FILE, 'utf8');
-    return JSON.parse(data);
+    const parsedData = JSON.parse(data);
+    console.log(`Loaded platform data: ${Object.keys(parsedData).length} platforms`);
+    console.log('Platform keys:', Object.keys(parsedData));
+    return parsedData;
   } catch (error) {
     if (error.code === 'ENOENT') {
       // File doesn't exist, return empty data
+      console.log('No database file found, returning empty data');
       return {};
     }
+    console.error('Error loading platform data:', error);
     throw error;
   }
 }
@@ -101,7 +106,11 @@ async function loadPlatformData() {
 async function savePlatformData(data) {
   try {
     await ensureDataDirectory();
-    await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
+    const dataString = JSON.stringify(data, null, 2);
+    await fs.writeFile(DB_FILE, dataString);
+    console.log(`Saved platform data: ${Object.keys(data).length} platforms`);
+    console.log('Platform keys:', Object.keys(data));
+    console.log(`Data size: ${dataString.length} characters`);
   } catch (error) {
     console.error('Error saving platform data:', error);
     throw new Error('Failed to save data to database');
@@ -286,6 +295,28 @@ app.delete('/api/platform-data/:platformId', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'IGDB API proxy is running' });
+});
+
+// Debug endpoint to check database state
+app.get('/api/debug/database', async (req, res) => {
+  try {
+    const data = await loadPlatformData();
+    res.json({
+      platformCount: Object.keys(data).length,
+      platforms: Object.keys(data),
+      dataSize: JSON.stringify(data).length,
+      sampleData: Object.keys(data).slice(0, 3).reduce((acc, key) => {
+        acc[key] = {
+          favoritesCount: data[key].favorites?.length || 0,
+          deletedCount: data[key].deleted?.length || 0
+        };
+        return acc;
+      }, {})
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Serve React app in production
