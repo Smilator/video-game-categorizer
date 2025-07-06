@@ -114,11 +114,27 @@
             railwayUrl = url;
             showResult('connectionResult', 'Testing connection...', '');
 
-            fetch(`${url}/api/health`)
-                .then(response => response.json())
-                .then(data => {
-                    showResult('connectionResult', `✅ Connection successful!\n${JSON.stringify(data, null, 2)}`, 'success');
-                    document.getElementById('migrateBtn').disabled = false;
+            fetch(`${url}/api/health`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        showResult('connectionResult', `✅ Connection successful!\n${JSON.stringify(data, null, 2)}`, 'success');
+                        document.getElementById('migrateBtn').disabled = false;
+                    } catch (e) {
+                        showResult('connectionResult', `❌ Invalid JSON response: ${text.substring(0, 200)}...`, 'error');
+                    }
                 })
                 .catch(error => {
                     showResult('connectionResult', `❌ Connection failed: ${error.message}`, 'error');
@@ -178,6 +194,7 @@
                     const response = await fetch(`${railwayUrl}/api/platform-data/${platformId}`, {
                         method: 'POST',
                         headers: {
+                            'Accept': 'application/json',
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
@@ -190,8 +207,9 @@
                         migratedCount++;
                         showResult('migrationResult', `✅ Migrated platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted`, 'success');
                     } else {
+                        const errorText = await response.text();
                         errorCount++;
-                        showResult('migrationResult', `❌ Failed to migrate platform ${platformId}`, 'error');
+                        showResult('migrationResult', `❌ Failed to migrate platform ${platformId}: ${response.status} - ${errorText}`, 'error');
                     }
                 } catch (error) {
                     errorCount++;
@@ -215,25 +233,41 @@
 
             showResult('verificationResult', 'Verifying migration...', '');
 
-            fetch(`${railwayUrl}/api/platform-data`)
-                .then(response => response.json())
-                .then(data => {
-                    const platforms = Object.keys(data);
-                    let result = 'Database Verification:\n\n';
-                    
-                    if (platforms.length === 0) {
-                        result += '❌ No data found in database\n';
-                    } else {
-                        result += `✅ Found ${platforms.length} platforms in database:\n\n`;
-                        platforms.forEach(platformId => {
-                            const platform = data[platformId];
-                            result += `Platform ${platformId}:\n`;
-                            result += `  - Favorites: ${platform.favorites?.length || 0}\n`;
-                            result += `  - Deleted: ${platform.deleted?.length || 0}\n\n`;
-                        });
+            fetch(`${railwayUrl}/api/platform-data`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
+                    return response.text();
+                })
+                .then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        const platforms = Object.keys(data);
+                        let result = 'Database Verification:\n\n';
+                        
+                        if (platforms.length === 0) {
+                            result += '❌ No data found in database\n';
+                        } else {
+                            result += `✅ Found ${platforms.length} platforms in database:\n\n`;
+                            platforms.forEach(platformId => {
+                                const platform = data[platformId];
+                                result += `Platform ${platformId}:\n`;
+                                result += `  - Favorites: ${platform.favorites?.length || 0}\n`;
+                                result += `  - Deleted: ${platform.deleted?.length || 0}\n\n`;
+                            });
+                        }
 
-                    showResult('verificationResult', result, platforms.length > 0 ? 'success' : 'error');
+                        showResult('verificationResult', result, platforms.length > 0 ? 'success' : 'error');
+                    } catch (e) {
+                        showResult('verificationResult', `❌ Invalid JSON response: ${text.substring(0, 200)}...`, 'error');
+                    }
                 })
                 .catch(error => {
                     showResult('verificationResult', `❌ Verification failed: ${error.message}`, 'error');
