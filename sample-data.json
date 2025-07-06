@@ -1,0 +1,42 @@
+{
+  "favorites": [
+    {
+      "id": 83868,
+      "cover": {
+        "id": 161734,
+        "image_id": "co3gsm"
+      },
+      "name": "10 Second Run Returns",
+      "slug": "10-second-run-returns"
+    },
+    {
+      "id": 1020,
+      "cover": {
+        "id": 86223,
+        "image_id": "co1u8v"
+      },
+      "name": "Grand Theft Auto V",
+      "slug": "grand-theft-auto-v"
+    }
+  ],
+  "deleted": [
+    {
+      "id": 186946,
+      "cover": {
+        "id": 281122,
+        "image_id": "co60wy"
+      },
+      "name": "0x0 Minimalist",
+      "slug": "0x0-minimalist"
+    },
+    {
+      "id": 1942,
+      "cover": {
+        "id": 86224,
+        "image_id": "co1u8w"
+      },
+      "name": "Grand Theft Auto: San Andreas",
+      "slug": "grand-theft-auto-san-andreas"
+    }
+  ]
+} 

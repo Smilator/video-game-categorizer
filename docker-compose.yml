@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  video-game-categorizer:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+    volumes:
+      - ./server/data:/app/server/data
+    restart: unless-stopped 
