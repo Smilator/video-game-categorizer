@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Upload, Heart, Trash2, Gamepad2, Loader2, RotateCcw, Eye, FileText, LogIn, LogOut, User } from 'lucide-react';
+import { Download, Upload, Heart, Trash2, Loader2, RotateCcw, Eye, FileText, LogIn, LogOut, User, Zap } from 'lucide-react';
 import igdbApi from './services/igdbApi';
 import databaseApi from './services/databaseApi';
 import GameCard from './components/GameCard';
@@ -31,8 +31,6 @@ function App() {
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [xmlImportProgress, setXmlImportProgress] = useState({ current: 0, total: 0, isImporting: false });
-  const [showMigrationTool, setShowMigrationTool] = useState(false);
-  const [migrationStatus, setMigrationStatus] = useState('');
   const [fetchedGameIds, setFetchedGameIds] = useState(new Set());
 
   // Helper functions for favorites and deleted lists
@@ -719,68 +717,7 @@ function App() {
     }
   };
 
-  const migrateFromLocalStorage = async () => {
-    setMigrationStatus('Checking localStorage...');
-    
-    try {
-      const platformData = localStorage.getItem('platformData');
-      const processedGames = localStorage.getItem('processedGames');
-      
-      // Debug information
-      let debugInfo = `Debug Information:\n`;
-      debugInfo += `- localStorage platformData: ${platformData ? 'EXISTS' : 'NOT FOUND'}\n`;
-      debugInfo += `- localStorage processedGames: ${processedGames ? 'EXISTS' : 'NOT FOUND'}\n`;
-      debugInfo += `- Current database platforms: ${Object.keys(platformData).length}\n`;
-      
-      if (platformData) {
-        const data = JSON.parse(platformData);
-        const platforms = Object.keys(data);
-        debugInfo += `- localStorage platforms: ${platforms.length}\n`;
-        platforms.forEach(platformId => {
-          const platform = data[platformId];
-          debugInfo += `  Platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted\n`;
-        });
-      }
-      
-      setMigrationStatus(debugInfo);
-      
-      if (!platformData) {
-        setMigrationStatus(debugInfo + '\n❌ No data found in localStorage to migrate.');
-        return;
-      }
 
-      const data = JSON.parse(platformData);
-      const platforms = Object.keys(data);
-      
-      if (platforms.length === 0) {
-        setMigrationStatus(debugInfo + '\n❌ No platform data found in localStorage.');
-        return;
-      }
-
-      setMigrationStatus(debugInfo + `\n🔄 Found ${platforms.length} platforms with data. Starting migration...`);
-      
-      // Save to database
-      await databaseApi.savePlatformData(data);
-      
-      // Update local state
-      setPlatformData(data);
-      
-      // Clear localStorage after successful migration
-      localStorage.removeItem('platformData');
-      localStorage.removeItem('processedGames');
-      
-      setMigrationStatus(debugInfo + `\n✅ Migration completed successfully! Migrated ${platforms.length} platforms.`);
-      
-      setTimeout(() => {
-        setMigrationStatus('');
-        setShowMigrationTool(false);
-      }, 5000);
-      
-    } catch (error) {
-      console.error('Migration error:', error);
-      setMigrationStatus(`❌ Migration failed: ${error.message}`);
-    }
-  };
 
   const selectedPlatformName = platforms.find(p => p.id === parseInt(selectedPlatform))?.name || '';
 
@@ -789,7 +726,7 @@ function App() {
       <div className="header">
         <div className="header-content">
           <div className="header-left">
-            <h1><Gamepad2 size={48} /> Video Game Categorizer</h1>
+            <h1><Zap size={48} /> Frankenstein Database</h1>
             <p>Browse and categorize video games from IGDB API</p>
           </div>
           <div className="header-right">
@@ -799,10 +736,6 @@ function App() {
                   <User size={16} />
                   {currentUser}
                 </span>
-                <button className="btn btn-secondary" onClick={() => setShowMigrationTool(!showMigrationTool)}>
-                  <Upload size={16} />
-                  Migrate Data
-                </button>
                 <button className="btn btn-secondary" onClick={handleLogout}>
                   <LogOut size={16} />
                   Logout
@@ -817,60 +750,7 @@ function App() {
           </div>
         </div>
         
-        {/* Migration Tool */}
-        {showMigrationTool && isAuthenticated && (
-          <div className="migration-tool">
-            <div className="migration-content">
-              <h3>🔄 Migrate Data from localStorage</h3>
-              <p>This will migrate your localStorage data to the new database system.</p>
-              
-              <div className="migration-actions">
-                <button 
-                  className="btn btn-primary" 
-                  onClick={migrateFromLocalStorage}
-                  disabled={migrationStatus.includes('Checking') || migrationStatus.includes('Found')}
-                >
-                  <Upload size={16} />
-                  Check & Migrate
-                </button>
-                
-                <button 
-                  className="btn btn-info" 
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('/api/debug/database');
-                      const debugData = await response.json();
-                      const debugInfo = `Server Database State:\n- Platform count: ${debugData.platformCount}\n- Platforms: ${debugData.platforms.join(', ')}\n- Data size: ${debugData.dataSize} characters\n\nSample data:\n${JSON.stringify(debugData.sampleData, null, 2)}\n\nLocal State:\n- Platforms with data: ${Object.keys(platformData).length}\n`;
-                      Object.keys(platformData).forEach(platformId => {
-                        const platform = platformData[platformId];
-                        debugInfo += `  Platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted\n`;
-                      });
-                      setMigrationStatus(debugInfo);
-                    } catch (error) {
-                      setMigrationStatus(`Error checking database: ${error.message}`);
-                    }
-                  }}
-                >
-                  <Eye size={16} />
-                  Check Server DB
-                </button>
-                
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={() => setShowMigrationTool(false)}
-                >
-                  Close
-                </button>
-              </div>
-              
-              {migrationStatus && (
-                <div className={`migration-status ${migrationStatus.includes('✅') ? 'success' : migrationStatus.includes('❌') ? 'error' : 'info'}`}>
-                  {migrationStatus}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Login Modal */}
