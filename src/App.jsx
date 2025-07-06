@@ -641,8 +641,28 @@ function App() {
     
     try {
       const platformData = localStorage.getItem('platformData');
+      const processedGames = localStorage.getItem('processedGames');
+      
+      // Debug information
+      let debugInfo = `Debug Information:\n`;
+      debugInfo += `- localStorage platformData: ${platformData ? 'EXISTS' : 'NOT FOUND'}\n`;
+      debugInfo += `- localStorage processedGames: ${processedGames ? 'EXISTS' : 'NOT FOUND'}\n`;
+      debugInfo += `- Current database platforms: ${Object.keys(platformData).length}\n`;
+      
+      if (platformData) {
+        const data = JSON.parse(platformData);
+        const platforms = Object.keys(data);
+        debugInfo += `- localStorage platforms: ${platforms.length}\n`;
+        platforms.forEach(platformId => {
+          const platform = data[platformId];
+          debugInfo += `  Platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted\n`;
+        });
+      }
+      
+      setMigrationStatus(debugInfo);
+      
       if (!platformData) {
-        setMigrationStatus('No data found in localStorage to migrate.');
+        setMigrationStatus(debugInfo + '\n❌ No data found in localStorage to migrate.');
         return;
       }
 
@@ -650,11 +670,11 @@ function App() {
       const platforms = Object.keys(data);
       
       if (platforms.length === 0) {
-        setMigrationStatus('No platform data found in localStorage.');
+        setMigrationStatus(debugInfo + '\n❌ No platform data found in localStorage.');
         return;
       }
 
-      setMigrationStatus(`Found ${platforms.length} platforms with data. Starting migration...`);
+      setMigrationStatus(debugInfo + `\n🔄 Found ${platforms.length} platforms with data. Starting migration...`);
       
       // Save to database
       await databaseApi.savePlatformData(data);
@@ -666,12 +686,12 @@ function App() {
       localStorage.removeItem('platformData');
       localStorage.removeItem('processedGames');
       
-      setMigrationStatus(`✅ Migration completed successfully! Migrated ${platforms.length} platforms.`);
+      setMigrationStatus(debugInfo + `\n✅ Migration completed successfully! Migrated ${platforms.length} platforms.`);
       
       setTimeout(() => {
         setMigrationStatus('');
         setShowMigrationTool(false);
-      }, 3000);
+      }, 5000);
       
     } catch (error) {
       console.error('Migration error:', error);
@@ -728,7 +748,22 @@ function App() {
                   disabled={migrationStatus.includes('Checking') || migrationStatus.includes('Found')}
                 >
                   <Upload size={16} />
-                  Start Migration
+                  Check & Migrate
+                </button>
+                
+                <button 
+                  className="btn btn-info" 
+                  onClick={() => {
+                    const debugInfo = `Current Database State:\n- Platforms with data: ${Object.keys(platformData).length}\n`;
+                    Object.keys(platformData).forEach(platformId => {
+                      const platform = platformData[platformId];
+                      debugInfo += `  Platform ${platformId}: ${platform.favorites?.length || 0} favorites, ${platform.deleted?.length || 0} deleted\n`;
+                    });
+                    setMigrationStatus(debugInfo);
+                  }}
+                >
+                  <Eye size={16} />
+                  Check Database
                 </button>
                 
                 <button 
