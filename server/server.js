@@ -9,7 +9,8 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
@@ -252,10 +253,14 @@ app.post('/api/platform-data/:platformId', async (req, res) => {
     const { platformId } = req.params;
     const { favorites, deleted } = req.body;
     
+    console.log(`Updating platform ${platformId}: ${favorites?.length || 0} favorites, ${deleted?.length || 0} deleted`);
+    console.log(`Request body size: ${JSON.stringify(req.body).length} characters`);
+    
     const data = await loadPlatformData();
     data[platformId] = { favorites: favorites || [], deleted: deleted || [] };
     
     await savePlatformData(data);
+    console.log(`Successfully updated platform ${platformId}`);
     res.json({ message: 'Platform data updated successfully' });
   } catch (error) {
     console.error('Error updating platform data:', error);
