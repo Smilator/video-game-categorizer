@@ -33,6 +33,7 @@ function App() {
   const [xmlImportProgress, setXmlImportProgress] = useState({ current: 0, total: 0, isImporting: false });
   const [showMigrationTool, setShowMigrationTool] = useState(false);
   const [migrationStatus, setMigrationStatus] = useState('');
+  const [fetchedGameIds, setFetchedGameIds] = useState(new Set());
 
   // Helper functions for favorites and deleted lists
   const favorites = selectedPlatform ? (platformData[selectedPlatform]?.favorites || []) : [];
@@ -218,13 +219,16 @@ function App() {
       setIsLoadingMore(true);
       setError(null);
       
-      // Get current platform's processed games
+      // Get current platform's processed games (favorites + deleted)
       const currentPlatformProcessed = new Set();
       const currentPlatformData = platformData[platformId];
       if (currentPlatformData) {
         currentPlatformData.favorites.forEach(game => currentPlatformProcessed.add(game.id));
         currentPlatformData.deleted.forEach(game => currentPlatformProcessed.add(game.id));
       }
+      
+      // Also exclude games we've already fetched and shown
+      const allExcludedGames = new Set([...currentPlatformProcessed, ...fetchedGameIds]);
       
       // Fetch games from IGDB (50 per batch)
       const gamesData = await igdbApi.getGamesByPlatform(platformId, offset, 50);
@@ -237,8 +241,12 @@ function App() {
         return;
       }
       
-      // Filter out games that have already been processed for this platform
-      const unprocessedGames = gamesData.filter(game => !currentPlatformProcessed.has(game.id));
+      // Filter out games that have already been processed or fetched
+      const unprocessedGames = gamesData.filter(game => !allExcludedGames.has(game.id));
+      
+      // Add the new game IDs to our fetched set
+      const newGameIds = new Set(gamesData.map(game => game.id));
+      setFetchedGameIds(prev => new Set([...prev, ...newGameIds]));
       
       if (offset === 0) {
         setGames(unprocessedGames);
@@ -247,18 +255,26 @@ function App() {
         setGames(prev => [...prev, ...unprocessedGames]);
         setCurrentOffset(offset + 50);
       }
+      
+      // If we got very few unprocessed games, try to load more immediately
+      if (unprocessedGames.length < 10 && gamesData.length === 50) {
+        setTimeout(() => {
+          fetchGames(platformId, offset + 50);
+        }, 200);
+      }
     } catch (err) {
       setError(err.message);
       console.error('Error fetching games:', err);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [platformData]);
+  }, [platformData, fetchedGameIds]);
 
   const handlePlatformChange = (platformId) => {
     setSelectedPlatform(platformId);
     setGames([]);
     setCurrentOffset(0);
+    setFetchedGameIds(new Set()); // Reset fetched games when changing platforms
     setError(null);
     setShowLists(false); // Hide lists when changing platforms
     setShowCollectedOnly(false); // Reset collected filter when changing platforms
@@ -313,7 +329,18 @@ function App() {
       }));
       
       // Remove game from current list
-      setGames(prev => prev.filter(g => g.id !== game.id));
+      setGames(prev => {
+        const newGames = prev.filter(g => g.id !== game.id);
+        
+        // If we have fewer than 15 games left, automatically load more
+        if (newGames.length < 15 && isAuthenticated) {
+          setTimeout(() => {
+            fetchGames(selectedPlatform, currentOffset);
+          }, 100);
+        }
+        
+        return newGames;
+      });
     } catch (error) {
       console.error('Failed to save game action:', error);
     }
