@@ -77,6 +77,14 @@
 
         <div class="step">
             <h3>Step 1: Enter Your Railway URL</h3>
+            <p><strong>How to find your Railway URL:</strong></p>
+            <ol>
+                <li>Go to your Railway dashboard at <a href="https://railway.app/dashboard" target="_blank" style="color: #4CAF50;">railway.app/dashboard</a></li>
+                <li>Click on your deployed app</li>
+                <li>Go to the "Deployments" tab</li>
+                <li>Click on your latest deployment</li>
+                <li>Copy the "Domain" URL (it should look like: https://your-app-name.railway.app)</li>
+            </ol>
             <input type="text" id="railwayUrl" placeholder="https://your-app-name.railway.app" />
             <button onclick="testConnection()">Test Connection</button>
             <div id="connectionResult" class="result"></div>
@@ -103,6 +111,18 @@
 
     <script>
         let railwayUrl = '';
+
+        // Auto-detect Railway URL if possible
+        function autoDetectRailwayUrl() {
+            const currentUrl = window.location.origin;
+            if (currentUrl.includes('railway.app')) {
+                document.getElementById('railwayUrl').value = currentUrl;
+                railwayUrl = currentUrl;
+            }
+        }
+
+        // Run auto-detection when page loads
+        window.addEventListener('load', autoDetectRailwayUrl);
 
         function testConnection() {
             const url = document.getElementById('railwayUrl').value.trim();
@@ -133,11 +153,11 @@
                         showResult('connectionResult', `✅ Connection successful!\n${JSON.stringify(data, null, 2)}`, 'success');
                         document.getElementById('migrateBtn').disabled = false;
                     } catch (e) {
-                        showResult('connectionResult', `❌ Invalid JSON response: ${text.substring(0, 200)}...`, 'error');
+                        showResult('connectionResult', `❌ Invalid JSON response: ${text.substring(0, 200)}...\n\nThis usually means the URL is incorrect or the server is not responding properly.`, 'error');
                     }
                 })
                 .catch(error => {
-                    showResult('connectionResult', `❌ Connection failed: ${error.message}`, 'error');
+                    showResult('connectionResult', `❌ Connection failed: ${error.message}\n\nPlease check:\n1. Your Railway URL is correct\n2. Your Railway app is running\n3. The URL should look like: https://your-app-name.railway.app`, 'error');
                 });
         }
 

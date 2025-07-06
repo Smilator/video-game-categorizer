@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Railway URL Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Railway URL Test Tool</h1>
+        
+        <h3>Step 1: Find Your Railway URL</h3>
+        <ol>
+            <li>Go to <a href="https://railway.app/dashboard" target="_blank">railway.app/dashboard</a></li>
+            <li>Click on your deployed app</li>
+            <li>Go to "Settings" tab</li>
+            <li>Look for "Domains" section</li>
+            <li>Copy the URL (should look like: https://your-app-name.railway.app)</li>
+        </ol>
+
+        <h3>Step 2: Test Your URL</h3>
+        <input type="text" id="railwayUrl" placeholder="https://your-app-name.railway.app" />
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <button onclick="testPlatforms()">Test Platforms Endpoint</button>
+        <button onclick="testAll()">Test All Endpoints</button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        function showResult(message, type = '') {
+            const result = document.getElementById('result');
+            result.textContent = message;
+            result.className = `result ${type}`;
+        }
+
+        async function testEndpoint(url, endpoint, name) {
+            try {
+                const response = await fetch(`${url}${endpoint}`);
+                const text = await response.text();
+                
+                try {
+                    const json = JSON.parse(text);
+                    return { success: true, data: json, status: response.status };
+                } catch (e) {
+                    return { success: false, error: `Invalid JSON: ${text.substring(0, 100)}...`, status: response.status };
+                }
+            } catch (error) {
+                return { success: false, error: error.message, status: 'Network Error' };
+            }
+        }
+
+        async function testHealth() {
+            const url = document.getElementById('railwayUrl').value.trim();
+            if (!url) {
+                showResult('Please enter a Railway URL', 'error');
+                return;
+            }
+
+            showResult('Testing health endpoint...');
+            const result = await testEndpoint(url, '/api/health', 'Health');
+            
+            if (result.success) {
+                showResult(`✅ Health endpoint working!\nStatus: ${result.status}\nResponse: ${JSON.stringify(result.data, null, 2)}`, 'success');
+            } else {
+                showResult(`❌ Health endpoint failed!\nStatus: ${result.status}\nError: ${result.error}`, 'error');
+            }
+        }
+
+        async function testPlatforms() {
+            const url = document.getElementById('railwayUrl').value.trim();
+            if (!url) {
+                showResult('Please enter a Railway URL', 'error');
+                return;
+            }
+
+            showResult('Testing platforms endpoint...');
+            const result = await testEndpoint(url, '/api/platforms', 'Platforms');
+            
+            if (result.success) {
+                showResult(`✅ Platforms endpoint working!\nStatus: ${result.status}\nFound ${result.data.length} platforms`, 'success');
+            } else {
+                showResult(`❌ Platforms endpoint failed!\nStatus: ${result.status}\nError: ${result.error}`, 'error');
+            }
+        }
+
+        async function testAll() {
+            const url = document.getElementById('railwayUrl').value.trim();
+            if (!url) {
+                showResult('Please enter a Railway URL', 'error');
+                return;
+            }
+
+            showResult('Testing all endpoints...\n');
+            
+            const endpoints = [
+                { path: '/api/health', name: 'Health' },
+                { path: '/api/platforms', name: 'Platforms' }
+            ];
+
+            let results = '';
+            
+            for (const endpoint of endpoints) {
+                results += `Testing ${endpoint.name}...\n`;
+                const result = await testEndpoint(url, endpoint.path, endpoint.name);
+                
+                if (result.success) {
+                    results += `✅ ${endpoint.name}: OK (${result.status})\n`;
+                } else {
+                    results += `❌ ${endpoint.name}: FAILED (${result.status}) - ${result.error}\n`;
+                }
+                results += '\n';
+            }
+
+            showResult(results, results.includes('❌') ? 'error' : 'success');
+        }
+    </script>
+</body>
+</html> 
