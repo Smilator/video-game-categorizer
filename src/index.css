@@ -633,4 +633,70 @@ body {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+/* Migration Tool Styles */
+.migration-tool {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.migration-content {
+  color: white;
+}
+
+.migration-content h3 {
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+}
+
+.migration-content p {
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.migration-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.migration-status {
+  padding: 15px;
+  border-radius: 8px;
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+
+.migration-status.success {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.migration-status.error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.migration-status.info {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+@media (max-width: 768px) {
+  .migration-actions {
+    flex-direction: column;
+  }
+  
+  .migration-tool {
+    margin-top: 15px;
+    padding: 15px;
+  }
 } 

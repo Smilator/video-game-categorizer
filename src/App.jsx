@@ -31,6 +31,8 @@ function App() {
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [xmlImportProgress, setXmlImportProgress] = useState({ current: 0, total: 0, isImporting: false });
+  const [showMigrationTool, setShowMigrationTool] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState('');
 
   // Helper functions for favorites and deleted lists
   const favorites = selectedPlatform ? (platformData[selectedPlatform]?.favorites || []) : [];
@@ -634,6 +636,49 @@ function App() {
     }
   };
 
+  const migrateFromLocalStorage = async () => {
+    setMigrationStatus('Checking localStorage...');
+    
+    try {
+      const platformData = localStorage.getItem('platformData');
+      if (!platformData) {
+        setMigrationStatus('No data found in localStorage to migrate.');
+        return;
+      }
+
+      const data = JSON.parse(platformData);
+      const platforms = Object.keys(data);
+      
+      if (platforms.length === 0) {
+        setMigrationStatus('No platform data found in localStorage.');
+        return;
+      }
+
+      setMigrationStatus(`Found ${platforms.length} platforms with data. Starting migration...`);
+      
+      // Save to database
+      await databaseApi.savePlatformData(data);
+      
+      // Update local state
+      setPlatformData(data);
+      
+      // Clear localStorage after successful migration
+      localStorage.removeItem('platformData');
+      localStorage.removeItem('processedGames');
+      
+      setMigrationStatus(`✅ Migration completed successfully! Migrated ${platforms.length} platforms.`);
+      
+      setTimeout(() => {
+        setMigrationStatus('');
+        setShowMigrationTool(false);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Migration error:', error);
+      setMigrationStatus(`❌ Migration failed: ${error.message}`);
+    }
+  };
+
   const selectedPlatformName = platforms.find(p => p.id === parseInt(selectedPlatform))?.name || '';
 
   return (
@@ -651,6 +696,10 @@ function App() {
                   <User size={16} />
                   {currentUser}
                 </span>
+                <button className="btn btn-secondary" onClick={() => setShowMigrationTool(!showMigrationTool)}>
+                  <Upload size={16} />
+                  Migrate Data
+                </button>
                 <button className="btn btn-secondary" onClick={handleLogout}>
                   <LogOut size={16} />
                   Logout
@@ -664,6 +713,40 @@ function App() {
             )}
           </div>
         </div>
+        
+        {/* Migration Tool */}
+        {showMigrationTool && isAuthenticated && (
+          <div className="migration-tool">
+            <div className="migration-content">
+              <h3>🔄 Migrate Data from localStorage</h3>
+              <p>This will migrate your localStorage data to the new database system.</p>
+              
+              <div className="migration-actions">
+                <button 
+                  className="btn btn-primary" 
+                  onClick={migrateFromLocalStorage}
+                  disabled={migrationStatus.includes('Checking') || migrationStatus.includes('Found')}
+                >
+                  <Upload size={16} />
+                  Start Migration
+                </button>
+                
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowMigrationTool(false)}
+                >
+                  Close
+                </button>
+              </div>
+              
+              {migrationStatus && (
+                <div className={`migration-status ${migrationStatus.includes('✅') ? 'success' : migrationStatus.includes('❌') ? 'error' : 'info'}`}>
+                  {migrationStatus}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Login Modal */}
