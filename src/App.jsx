@@ -77,14 +77,6 @@ function App() {
 
   // Separate platforms into two categories
   const getPlatformCategories = () => {
-    // For non-authenticated users, show all platforms as "with games" so they can browse
-    if (!isAuthenticated) {
-      return {
-        platformsWithGames: platforms,
-        platformsWithoutGames: []
-      };
-    }
-
     const platformsWithGames = [];
     const platformsWithoutGames = [];
     
@@ -144,9 +136,26 @@ function App() {
   useEffect(() => {
     if (isInitialized && isAuthenticated) {
       console.log('Saving to database - platformData:', platformData);
+      
+      // Try to save to database first
       databaseApi.savePlatformData(platformData).catch(error => {
         console.error('Failed to save to database:', error);
+        
+        // Fallback to localStorage if database fails
+        try {
+          localStorage.setItem('platformData', JSON.stringify(platformData));
+          console.log('Saved to localStorage as fallback');
+        } catch (localStorageError) {
+          console.error('Failed to save to localStorage:', localStorageError);
+        }
       });
+      
+      // Also save to localStorage as backup
+      try {
+        localStorage.setItem('platformData', JSON.stringify(platformData));
+      } catch (localStorageError) {
+        console.error('Failed to save to localStorage:', localStorageError);
+      }
     }
   }, [platformData, isInitialized, isAuthenticated]);
 
@@ -161,8 +170,23 @@ function App() {
         setPlatformData(data);
       } catch (error) {
         console.error('Failed to load data from database:', error);
-        // Fallback to empty data
-        setPlatformData({});
+        
+        // Fallback to localStorage if database fails
+        try {
+          const localStorageData = localStorage.getItem('platformData');
+          if (localStorageData) {
+            const parsedData = JSON.parse(localStorageData);
+            console.log('Falling back to localStorage data:', parsedData);
+            setPlatformData(parsedData);
+          } else {
+            // If no localStorage data either, try to load from any other available source
+            console.log('No localStorage data found, starting with empty data');
+            setPlatformData({});
+          }
+        } catch (localStorageError) {
+          console.error('Failed to load from localStorage:', localStorageError);
+          setPlatformData({});
+        }
       }
     };
     
@@ -270,7 +294,15 @@ function App() {
         newDeleted = [...currentData.deleted, game];
       }
       
-      await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
+      try {
+        await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
+      } catch (error) {
+        console.error('Failed to update database, using localStorage:', error);
+        // Fallback to localStorage
+        const currentData = JSON.parse(localStorage.getItem('platformData') || '{}');
+        currentData[selectedPlatform] = { favorites: newFavorites, deleted: newDeleted };
+        localStorage.setItem('platformData', JSON.stringify(currentData));
+      }
       
       setPlatformData(prev => ({
         ...prev,
@@ -301,7 +333,15 @@ function App() {
         newDeleted = currentData.deleted.filter(g => g.id !== game.id);
       }
       
-      await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
+      try {
+        await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
+      } catch (error) {
+        console.error('Failed to update database, using localStorage:', error);
+        // Fallback to localStorage
+        const currentData = JSON.parse(localStorage.getItem('platformData') || '{}');
+        currentData[selectedPlatform] = { favorites: newFavorites, deleted: newDeleted };
+        localStorage.setItem('platformData', JSON.stringify(currentData));
+      }
       
       setPlatformData(prev => ({
         ...prev,
@@ -416,14 +456,22 @@ function App() {
           data.deleted || []
         );
         
-        // Update local state
-        setPlatformData(prev => ({
-          ...prev,
-          [selectedPlatform]: {
-            favorites: data.favorites || [],
-            deleted: data.deleted || []
-          }
-        }));
+        // Reload all platform data from database to ensure consistency
+        try {
+          const refreshedData = await databaseApi.loadPlatformData();
+          setPlatformData(refreshedData);
+          console.log('Refreshed platform data after import:', refreshedData);
+        } catch (error) {
+          console.error('Failed to refresh platform data after import:', error);
+          // Fallback to local update
+          setPlatformData(prev => ({
+            ...prev,
+            [selectedPlatform]: {
+              favorites: data.favorites || [],
+              deleted: data.deleted || []
+            }
+          }));
+        }
         
         // Refresh the games list to show unprocessed games
         setTimeout(() => {
@@ -551,14 +599,22 @@ function App() {
             // Save to database
             await databaseApi.updatePlatformData(selectedPlatform, newFavorites, currentData.deleted);
             
-            // Update local state
-            setPlatformData(prev => ({
-              ...prev,
-              [selectedPlatform]: {
-                ...currentData,
-                favorites: newFavorites
-              }
-            }));
+            // Reload all platform data from database to ensure consistency
+            try {
+              const refreshedData = await databaseApi.loadPlatformData();
+              setPlatformData(refreshedData);
+              console.log('Refreshed platform data after XML import:', refreshedData);
+            } catch (error) {
+              console.error('Failed to refresh platform data after XML import:', error);
+              // Fallback to local update
+              setPlatformData(prev => ({
+                ...prev,
+                [selectedPlatform]: {
+                  ...currentData,
+                  favorites: newFavorites
+                }
+              }));
+            }
             
             console.log(`Added ${matchedGames.length} games to favorites (all marked as collected)`);
             alert(`Successfully imported ${matchedGames.length} games from XML file!`);

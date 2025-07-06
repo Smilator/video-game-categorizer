@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const fs = require('fs').promises;
 const path = require('path');
 const config = require('./config');
+const { Pool } = require('pg');
 
 const app = express();
 
@@ -23,6 +23,8 @@ const AUTH_URL = 'https://id.twitch.tv/oauth2/token';
 
 let accessToken = null;
 let tokenExpiry = null;
+
+const pool = new Pool({ connectionString: config.DATABASE_URL, ssl: config.DATABASE_URL && config.DATABASE_URL.includes('railway') ? { rejectUnauthorized: false } : false });
 
 // Get IGDB access token
 async function getAccessToken() {
@@ -69,52 +71,62 @@ async function makeIGDBRequest(endpoint, query) {
   }
 }
 
-// Database functions
-const DB_FILE = path.join(__dirname, 'data', 'platformData.json');
-
-// Ensure data directory exists
-async function ensureDataDirectory() {
-  const dataDir = path.dirname(DB_FILE);
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
+// PostgreSQL DB functions
+async function ensureTable() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS platform_data (
+    platform_id TEXT PRIMARY KEY,
+    favorites JSONB NOT NULL DEFAULT '[]',
+    deleted JSONB NOT NULL DEFAULT '[]'
+  )`);
 }
 
-// Load platform data from database
 async function loadPlatformData() {
+  await ensureTable();
+  const res = await pool.query('SELECT * FROM platform_data');
+  const data = {};
+  for (const row of res.rows) {
+    data[row.platform_id] = {
+      favorites: row.favorites || [],
+      deleted: row.deleted || []
+    };
+  }
+  return data;
+}
+
+async function savePlatformData(data) {
+  await ensureTable();
+  const client = await pool.connect();
   try {
-    await ensureDataDirectory();
-    const data = await fs.readFile(DB_FILE, 'utf8');
-    const parsedData = JSON.parse(data);
-    console.log(`Loaded platform data: ${Object.keys(parsedData).length} platforms`);
-    console.log('Platform keys:', Object.keys(parsedData));
-    return parsedData;
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      // File doesn't exist, return empty data
-      console.log('No database file found, returning empty data');
-      return {};
+    await client.query('BEGIN');
+    await client.query('DELETE FROM platform_data');
+    for (const [platformId, { favorites, deleted }] of Object.entries(data)) {
+      await client.query(
+        'INSERT INTO platform_data (platform_id, favorites, deleted) VALUES ($1, $2, $3)',
+        [platformId, JSON.stringify(favorites || []), JSON.stringify(deleted || [])]
+      );
     }
-    console.error('Error loading platform data:', error);
-    throw error;
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 }
 
-// Save platform data to database
-async function savePlatformData(data) {
-  try {
-    await ensureDataDirectory();
-    const dataString = JSON.stringify(data, null, 2);
-    await fs.writeFile(DB_FILE, dataString);
-    console.log(`Saved platform data: ${Object.keys(data).length} platforms`);
-    console.log('Platform keys:', Object.keys(data));
-    console.log(`Data size: ${dataString.length} characters`);
-  } catch (error) {
-    console.error('Error saving platform data:', error);
-    throw new Error('Failed to save data to database');
-  }
+async function updatePlatformData(platformId, favorites, deleted) {
+  await ensureTable();
+  await pool.query(
+    `INSERT INTO platform_data (platform_id, favorites, deleted)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (platform_id) DO UPDATE SET favorites = $2, deleted = $3`,
+    [platformId, JSON.stringify(favorites || []), JSON.stringify(deleted || [])]
+  );
+}
+
+async function deletePlatformData(platformId) {
+  await ensureTable();
+  await pool.query('DELETE FROM platform_data WHERE platform_id = $1', [platformId]);
 }
 
 // Routes
@@ -265,10 +277,7 @@ app.post('/api/platform-data/:platformId', async (req, res) => {
     console.log(`Updating platform ${platformId}: ${favorites?.length || 0} favorites, ${deleted?.length || 0} deleted`);
     console.log(`Request body size: ${JSON.stringify(req.body).length} characters`);
     
-    const data = await loadPlatformData();
-    data[platformId] = { favorites: favorites || [], deleted: deleted || [] };
-    
-    await savePlatformData(data);
+    await updatePlatformData(platformId, favorites, deleted);
     console.log(`Successfully updated platform ${platformId}`);
     res.json({ message: 'Platform data updated successfully' });
   } catch (error) {
@@ -281,10 +290,7 @@ app.delete('/api/platform-data/:platformId', async (req, res) => {
   try {
     const { platformId } = req.params;
     
-    const data = await loadPlatformData();
-    delete data[platformId];
-    
-    await savePlatformData(data);
+    await deletePlatformData(platformId);
     res.json({ message: 'Platform data deleted successfully' });
   } catch (error) {
     console.error('Error deleting platform data:', error);
