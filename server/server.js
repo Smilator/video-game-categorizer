@@ -98,13 +98,30 @@ async function savePlatformData(data) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('DELETE FROM platform_data');
+    
+    // Get existing platform IDs to know what to delete
+    const existingRes = await client.query('SELECT platform_id FROM platform_data');
+    const existingIds = new Set(existingRes.rows.map(row => row.platform_id));
+    const newIds = new Set(Object.keys(data));
+    
+    // Delete platforms that are no longer in the data
+    const toDelete = [...existingIds].filter(id => !newIds.has(id));
+    if (toDelete.length > 0) {
+      await client.query('DELETE FROM platform_data WHERE platform_id = ANY($1)', [toDelete]);
+    }
+    
+    // Insert or update platforms
     for (const [platformId, { favorites, deleted }] of Object.entries(data)) {
       await client.query(
-        'INSERT INTO platform_data (platform_id, favorites, deleted) VALUES ($1, $2, $3)',
+        `INSERT INTO platform_data (platform_id, favorites, deleted) 
+         VALUES ($1, $2, $3)
+         ON CONFLICT (platform_id) DO UPDATE SET 
+           favorites = EXCLUDED.favorites, 
+           deleted = EXCLUDED.deleted`,
         [platformId, JSON.stringify(favorites || []), JSON.stringify(deleted || [])]
       );
     }
+    
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -321,6 +338,40 @@ app.get('/api/debug/database', async (req, res) => {
     });
   } catch (error) {
     console.error('Debug endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Database optimization endpoint
+app.post('/api/debug/optimize-database', async (req, res) => {
+  try {
+    console.log('Starting database optimization...');
+    
+    // Run VACUUM and ANALYZE to clean up bloat and update statistics
+    await pool.query('VACUUM ANALYZE platform_data');
+    
+    // Get database size information
+    const sizeResult = await pool.query(`
+      SELECT 
+        pg_size_pretty(pg_total_relation_size('platform_data')) as total_size,
+        pg_size_pretty(pg_relation_size('platform_data')) as table_size,
+        pg_size_pretty(pg_indexes_size('platform_data')) as indexes_size
+    `);
+    
+    const rowCount = await pool.query('SELECT COUNT(*) as count FROM platform_data');
+    
+    console.log('Database optimization completed');
+    res.json({
+      message: 'Database optimization completed successfully',
+      stats: {
+        rowCount: parseInt(rowCount.rows[0].count),
+        totalSize: sizeResult.rows[0].total_size,
+        tableSize: sizeResult.rows[0].table_size,
+        indexesSize: sizeResult.rows[0].indexes_size
+      }
+    });
+  } catch (error) {
+    console.error('Database optimization error:', error);
     res.status(500).json({ error: error.message });
   }
 });
