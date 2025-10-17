@@ -304,6 +304,22 @@ body {
   line-height: 1.4;
 }
 
+.cross-platform-chip {
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.chip-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #92400e;
+  line-height: 1.2;
+}
+
 .game-link {
   margin-bottom: 10px;
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { Heart, Trash2, ExternalLink, RotateCcw } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
 
-function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated }) {
+function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo }) {
   const coverUrl = game.cover 
     ? igdbApi.getCoverImageUrl(game.cover.image_id, 'cover_big')
     : null;
@@ -28,6 +28,15 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
       
       <div className="game-info">
         <h3 className="game-title">{game.name}</h3>
+        
+        {/* Cross-platform chip */}
+        {crossPlatformInfo && crossPlatformInfo.length > 0 && (
+          <div className="cross-platform-chip">
+            <span className="chip-text">
+              In {crossPlatformInfo.length === 1 ? 'collection' : 'collections'}: {crossPlatformInfo.join(', ')}
+            </span>
+          </div>
+        )}
         
         {/* IGDB Link Button */}
         <div className="game-link">

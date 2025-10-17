@@ -37,6 +37,29 @@ function App() {
   const favorites = selectedPlatform ? (platformData[selectedPlatform]?.favorites || []) : [];
   const deleted = selectedPlatform ? (platformData[selectedPlatform]?.deleted || []) : [];
 
+  // Function to check if a game is favorited on other platforms
+  const getCrossPlatformInfo = (game) => {
+    if (!game || !game.id || !selectedPlatform) return null;
+    
+    const otherPlatforms = Object.keys(platformData).filter(platformId => 
+      platformId !== selectedPlatform && platformData[platformId]?.favorites
+    );
+    
+    const favoritedOn = [];
+    for (const platformId of otherPlatforms) {
+      const platformFavorites = platformData[platformId].favorites || [];
+      const isFavorited = platformFavorites.some(favGame => favGame.id === game.id);
+      if (isFavorited) {
+        const platform = platforms.find(p => p.id === parseInt(platformId));
+        if (platform) {
+          favoritedOn.push(platform.name);
+        }
+      }
+    }
+    
+    return favoritedOn.length > 0 ? favoritedOn : null;
+  };
+
   const getFilteredGames = () => {
     if (viewMode === 'favorites') {
       let filteredFavorites = favorites;
@@ -981,6 +1004,7 @@ function App() {
                   isCollected={game.collected}
                   viewMode={viewMode}
                   isAuthenticated={isAuthenticated}
+                  crossPlatformInfo={getCrossPlatformInfo(game)}
                 />
               ))}
             </div>
