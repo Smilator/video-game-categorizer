@@ -260,7 +260,18 @@ function App() {
       
       // Set the games for judging (this is a complete batch, no more auto-loading)
       setGames(unprocessedGames);
-      setCurrentOffset(offset + 500);
+      const newOffset = offset + 500;
+      setCurrentOffset(newOffset);
+      
+      // Save the current batch position to localStorage
+      try {
+        const batchPositions = JSON.parse(localStorage.getItem('batchPositions') || '{}');
+        batchPositions[platformId] = newOffset;
+        localStorage.setItem('batchPositions', JSON.stringify(batchPositions));
+        console.log(`💾 Saved batch position for platform ${platformId}: offset ${newOffset}`);
+      } catch (error) {
+        console.error('Failed to save batch position:', error);
+      }
       
       // Clear any previous fetched game IDs since we're starting fresh
       setFetchedGameIds(new Set());
@@ -276,7 +287,6 @@ function App() {
   const handlePlatformChange = (platformId) => {
     setSelectedPlatform(platformId);
     setGames([]);
-    setCurrentOffset(0);
     setFetchedGameIds(new Set()); // Reset fetched games when changing platforms
     setError(null);
     setShowLists(false); // Hide lists when changing platforms
@@ -286,10 +296,31 @@ function App() {
       // For non-authenticated users, automatically show favorites
       if (!isAuthenticated) {
         setViewMode('favorites');
+        setCurrentOffset(0);
       } else {
         setViewMode('all'); // Reset view mode when changing platforms
-        fetchGames(platformId, 0);
+        
+        // Load saved batch position for this platform
+        try {
+          const batchPositions = JSON.parse(localStorage.getItem('batchPositions') || '{}');
+          const savedOffset = batchPositions[platformId] || 0;
+          setCurrentOffset(savedOffset);
+          console.log(`📂 Loaded saved batch position for platform ${platformId}: offset ${savedOffset}`);
+          
+          // If we have a saved position > 0, load the current batch
+          if (savedOffset > 0) {
+            fetchGames(platformId, savedOffset - 500); // Load the current batch
+          } else {
+            fetchGames(platformId, 0); // Start from beginning
+          }
+        } catch (error) {
+          console.error('Failed to load batch position:', error);
+          setCurrentOffset(0);
+          fetchGames(platformId, 0);
+        }
       }
+    } else {
+      setCurrentOffset(0);
     }
   };
 
@@ -978,14 +1009,45 @@ function App() {
                 borderRadius: '8px',
                 border: '1px solid #e5e7eb'
               }}>
-                <p style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#374151' }}>
-                  📦 Current Batch: {getFilteredGames().length} games remaining
-                </p>
-                {getFilteredGames().length <= 10 && (
-                  <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
-                    ⚡ Almost done with this batch!
-                  </p>
-                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#374151' }}>
+                      📦 Current Batch: {getFilteredGames().length} games remaining
+                    </p>
+                    {getFilteredGames().length <= 10 && (
+                      <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
+                        ⚡ Almost done with this batch!
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Reset batch position to 0
+                      try {
+                        const batchPositions = JSON.parse(localStorage.getItem('batchPositions') || '{}');
+                        batchPositions[selectedPlatform] = 0;
+                        localStorage.setItem('batchPositions', JSON.stringify(batchPositions));
+                      } catch (error) {
+                        console.error('Failed to reset batch position:', error);
+                      }
+                      setCurrentOffset(0);
+                      fetchGames(selectedPlatform, 0);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    🔄 Restart from Batch 1
+                  </button>
+                </div>
               </div>
               <div className="game-grid">
               {getFilteredGames().map(game => (
@@ -1037,21 +1099,49 @@ function App() {
               <p style={{ marginBottom: '15px', color: '#6b7280' }}>
                 🎉 Great job! You've finished judging all games in this batch.
               </p>
-              <button
-                onClick={() => fetchGames(selectedPlatform, currentOffset)}
-                style={{
-                  padding: '12px 24px',
-                  fontSize: '16px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                📦 Load Next Batch (500 games)
-              </button>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => fetchGames(selectedPlatform, currentOffset)}
+                  style={{
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  📦 Load Next Batch (500 games)
+                </button>
+                <button
+                  onClick={() => {
+                    // Reset batch position to 0
+                    try {
+                      const batchPositions = JSON.parse(localStorage.getItem('batchPositions') || '{}');
+                      batchPositions[selectedPlatform] = 0;
+                      localStorage.setItem('batchPositions', JSON.stringify(batchPositions));
+                    } catch (error) {
+                      console.error('Failed to reset batch position:', error);
+                    }
+                    setCurrentOffset(0);
+                    fetchGames(selectedPlatform, 0);
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  🔄 Restart from Batch 1
+                </button>
+              </div>
             </div>
           )}
         </div>
