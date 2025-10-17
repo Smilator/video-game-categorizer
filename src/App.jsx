@@ -976,6 +976,7 @@ function App() {
                   game={game}
                   onSave={() => handleGameAction(game, 'save')}
                   onDelete={() => handleGameAction(game, 'delete')}
+                  onRevert={(game, fromList) => handleRevertGame(game, fromList)}
                   onToggleCollected={() => toggleCollectedStatus(game.id)}
                   isCollected={game.collected}
                   viewMode={viewMode}

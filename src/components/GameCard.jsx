@@ -2,7 +2,7 @@ import React from 'react';
 import { Heart, Trash2, ExternalLink, RotateCcw } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
 
-function GameCard({ game, onSave, onDelete, onToggleCollected, isCollected, viewMode, isAuthenticated }) {
+function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated }) {
   const coverUrl = game.cover 
     ? igdbApi.getCoverImageUrl(game.cover.image_id, 'cover_big')
     : null;
@@ -85,7 +85,7 @@ function GameCard({ game, onSave, onDelete, onToggleCollected, isCollected, view
             {(viewMode === 'favorites' || viewMode === 'deleted') && (
               <button 
                 className="btn btn-secondary"
-                onClick={() => onSave(game, 'revert')}
+                onClick={() => onRevert(game, viewMode)}
                 title="Move back to judging list"
               >
                 <RotateCcw size={14} />
