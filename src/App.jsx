@@ -352,13 +352,15 @@ function App() {
 
     try {
       const currentData = platformData[selectedPlatform] || { favorites: [], deleted: [] };
-      let newFavorites = currentData.favorites;
-      let newDeleted = currentData.deleted;
+      let newFavorites = [...currentData.favorites]; // Keep favorites unchanged
+      let newDeleted = [...currentData.deleted]; // Keep deleted unchanged
       
       if (fromList === 'favorites') {
+        // Remove from favorites only
         newFavorites = currentData.favorites.filter(g => g.id !== game.id);
         console.log('✅ Removed from favorites, new favorites count:', newFavorites.length);
       } else if (fromList === 'deleted') {
+        // Remove from deleted only
         newDeleted = currentData.deleted.filter(g => g.id !== game.id);
         console.log('✅ Removed from deleted, new deleted count:', newDeleted.length);
       }
