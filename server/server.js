@@ -93,6 +93,9 @@ async function loadPlatformData() {
   return data;
 }
 
+// DISABLED: This function causes data loss due to race conditions
+// It deletes platforms that aren't in the current request, causing data loss
+/*
 async function savePlatformData(data) {
   await ensureTable();
   const client = await pool.connect();
@@ -130,6 +133,7 @@ async function savePlatformData(data) {
     client.release();
   }
 }
+*/
 
 async function updatePlatformData(platformId, favorites, deleted) {
   await ensureTable();
@@ -270,6 +274,9 @@ app.get('/api/platform-data', async (req, res) => {
   }
 });
 
+// DISABLED: This endpoint causes data loss due to race conditions
+// Use /api/platform-data/:platformId instead for individual platform updates
+/*
 app.post('/api/platform-data', async (req, res) => {
   try {
     const { platformData } = req.body;
@@ -285,6 +292,7 @@ app.post('/api/platform-data', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+*/
 
 app.post('/api/platform-data/:platformId', async (req, res) => {
   try {
