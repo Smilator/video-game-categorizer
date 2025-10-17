@@ -152,29 +152,17 @@ function App() {
     }
   }, []);
 
-  // Save data to database whenever it changes (only for authenticated users)
+  // Save data to localStorage whenever it changes (database saves are handled individually to avoid race conditions)
   const [isInitialized, setIsInitialized] = useState(false);
   
   useEffect(() => {
     if (isInitialized && isAuthenticated) {
-      console.log('Saving to database - platformData:', platformData);
+      console.log('Saving to localStorage - platformData:', platformData);
       
-      // Try to save to database first
-      databaseApi.savePlatformData(platformData).catch(error => {
-        console.error('Failed to save to database:', error);
-        
-        // Fallback to localStorage if database fails
-        try {
-          localStorage.setItem('platformData', JSON.stringify(platformData));
-          console.log('Saved to localStorage as fallback');
-        } catch (localStorageError) {
-          console.error('Failed to save to localStorage:', localStorageError);
-        }
-      });
-      
-      // Also save to localStorage as backup
+      // Save to localStorage as backup (database saves are handled individually to avoid race conditions)
       try {
         localStorage.setItem('platformData', JSON.stringify(platformData));
+        console.log('Saved to localStorage');
       } catch (localStorageError) {
         console.error('Failed to save to localStorage:', localStorageError);
       }
