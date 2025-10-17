@@ -228,6 +228,8 @@ function App() {
       setIsLoadingMore(true);
       setError(null);
       
+      console.log(`🎮 Fetching batch of games for platform ${platformId}, offset: ${offset}`);
+      
       // Get current platform's processed games (favorites + deleted)
       const currentPlatformProcessed = new Set();
       const currentPlatformData = platformData[platformId];
@@ -236,48 +238,40 @@ function App() {
         currentPlatformData.deleted.forEach(game => currentPlatformProcessed.add(game.id));
       }
       
-      // Also exclude games we've already fetched and shown
-      const allExcludedGames = new Set([...currentPlatformProcessed, ...fetchedGameIds]);
+      console.log(`📊 Already processed ${currentPlatformProcessed.size} games for this platform`);
       
-      // Fetch games from IGDB (50 per batch)
-      const gamesData = await igdbApi.getGamesByPlatform(platformId, offset, 50);
+      // Fetch a large batch of games from IGDB (500 games)
+      const gamesData = await igdbApi.getGamesByPlatform(platformId, offset, 500);
       
       if (gamesData.length === 0) {
-        // No more games available
+        console.log('🏁 No more games available');
         if (offset === 0) {
           setGames([]);
         }
         return;
       }
       
-      // Filter out games that have already been processed or fetched
-      const unprocessedGames = gamesData.filter(game => !allExcludedGames.has(game.id));
+      console.log(`📥 Fetched ${gamesData.length} games from IGDB`);
       
-      // Add the new game IDs to our fetched set
-      const newGameIds = new Set(gamesData.map(game => game.id));
-      setFetchedGameIds(prev => new Set([...prev, ...newGameIds]));
+      // Filter out games that have already been processed
+      const unprocessedGames = gamesData.filter(game => !currentPlatformProcessed.has(game.id));
       
-      if (offset === 0) {
-        setGames(unprocessedGames);
-        setCurrentOffset(offset + 50);
-      } else {
-        setGames(prev => [...prev, ...unprocessedGames]);
-        setCurrentOffset(offset + 50);
-      }
+      console.log(`✅ ${unprocessedGames.length} unprocessed games ready for judging`);
       
-      // If we got very few unprocessed games, try to load more immediately
-      if (unprocessedGames.length < 10 && gamesData.length === 50) {
-        setTimeout(() => {
-          fetchGames(platformId, offset + 50);
-        }, 200);
-      }
+      // Set the games for judging (this is a complete batch, no more auto-loading)
+      setGames(unprocessedGames);
+      setCurrentOffset(offset + 500);
+      
+      // Clear any previous fetched game IDs since we're starting fresh
+      setFetchedGameIds(new Set());
+      
     } catch (err) {
       setError(err.message);
       console.error('Error fetching games:', err);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [platformData, fetchedGameIds]);
+  }, [platformData]);
 
   const handlePlatformChange = (platformId) => {
     setSelectedPlatform(platformId);
@@ -342,13 +336,8 @@ function App() {
         localStorage.setItem('platformData', JSON.stringify(currentData));
       }
       
-      // If we have fewer than 15 games left, automatically load more
-      const remainingGames = games.filter(g => g.id !== game.id);
-      if (remainingGames.length < 15 && isAuthenticated) {
-        setTimeout(() => {
-          fetchGames(selectedPlatform, currentOffset);
-        }, 100);
-      }
+      // Game judged - no automatic loading, wait for user to load next batch
+      console.log(`✅ Game "${game.name}" judged as ${action}`);
     } catch (error) {
       console.error('Failed to save game action:', error);
       // Revert the UI change if there was an error
@@ -980,7 +969,25 @@ function App() {
           </div>
           
           {getFilteredGames().length > 0 && (
-            <div className="game-grid">
+            <div>
+              <div style={{ 
+                textAlign: 'center', 
+                marginBottom: '20px', 
+                padding: '10px',
+                backgroundColor: '#f3f4f6',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <p style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#374151' }}>
+                  📦 Current Batch: {getFilteredGames().length} games remaining
+                </p>
+                {getFilteredGames().length <= 10 && (
+                  <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
+                    ⚡ Almost done with this batch!
+                  </p>
+                )}
+              </div>
+              <div className="game-grid">
               {getFilteredGames().map(game => (
                 <GameCard
                   key={game.id}
@@ -995,6 +1002,7 @@ function App() {
                   crossPlatformInfo={getCrossPlatformInfo(game)}
                 />
               ))}
+              </div>
             </div>
           )}
           
@@ -1019,7 +1027,31 @@ function App() {
           {isLoadingMore && viewMode === 'all' && isAuthenticated && (
             <div style={{ textAlign: 'center', padding: '20px' }}>
               <Loader2 size={24} className="loading-spinner" />
-              <p>Searching for unprocessed games...</p>
+              <p>Loading next batch of games...</p>
+            </div>
+          )}
+          
+          {/* Show "Load Next Batch" button when all games in current batch are judged */}
+          {!isLoadingMore && viewMode === 'all' && isAuthenticated && games.length === 0 && currentOffset > 0 && (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <p style={{ marginBottom: '15px', color: '#6b7280' }}>
+                🎉 Great job! You've finished judging all games in this batch.
+              </p>
+              <button
+                onClick={() => fetchGames(selectedPlatform, currentOffset)}
+                style={{
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                📦 Load Next Batch (500 games)
+              </button>
             </div>
           )}
         </div>
