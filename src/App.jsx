@@ -376,6 +376,12 @@ function App() {
       setGames(prev => [game, ...prev]);
       console.log('✅ Added game back to main list');
       
+      // Switch to "All Games" view when reverting
+      if (viewMode !== 'all') {
+        setViewMode('all');
+        console.log('✅ Switched to All Games view');
+      }
+      
       // Save to database in background
       try {
         await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
