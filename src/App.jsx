@@ -297,6 +297,9 @@ function App() {
       return;
     }
 
+    // Immediately remove game from UI to prevent double-clicks
+    setGames(prev => prev.filter(g => g.id !== game.id));
+
     try {
       const currentData = platformData[selectedPlatform] || { favorites: [], deleted: [] };
       let newFavorites = currentData.favorites;
@@ -308,6 +311,16 @@ function App() {
         newDeleted = [...currentData.deleted, game];
       }
       
+      // Update UI immediately (optimistic update)
+      setPlatformData(prev => ({
+        ...prev,
+        [selectedPlatform]: {
+          favorites: newFavorites,
+          deleted: newDeleted
+        }
+      }));
+      
+      // Save to database in background
       try {
         await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
       } catch (error) {
@@ -318,29 +331,17 @@ function App() {
         localStorage.setItem('platformData', JSON.stringify(currentData));
       }
       
-      setPlatformData(prev => ({
-        ...prev,
-        [selectedPlatform]: {
-          favorites: newFavorites,
-          deleted: newDeleted
-        }
-      }));
-      
-      // Remove game from current list
-      setGames(prev => {
-        const newGames = prev.filter(g => g.id !== game.id);
-        
-        // If we have fewer than 15 games left, automatically load more
-        if (newGames.length < 15 && isAuthenticated) {
-          setTimeout(() => {
-            fetchGames(selectedPlatform, currentOffset);
-          }, 100);
-        }
-        
-        return newGames;
-      });
+      // If we have fewer than 15 games left, automatically load more
+      const remainingGames = games.filter(g => g.id !== game.id);
+      if (remainingGames.length < 15 && isAuthenticated) {
+        setTimeout(() => {
+          fetchGames(selectedPlatform, currentOffset);
+        }, 100);
+      }
     } catch (error) {
       console.error('Failed to save game action:', error);
+      // Revert the UI change if there was an error
+      setGames(prev => [...prev, game]);
     }
   };
 
@@ -358,6 +359,19 @@ function App() {
         newDeleted = currentData.deleted.filter(g => g.id !== game.id);
       }
       
+      // Update UI immediately (optimistic update)
+      setPlatformData(prev => ({
+        ...prev,
+        [selectedPlatform]: {
+          favorites: newFavorites,
+          deleted: newDeleted
+        }
+      }));
+
+      // Add game back to the main list immediately
+      setGames(prev => [game, ...prev]);
+      
+      // Save to database in background
       try {
         await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
       } catch (error) {
@@ -367,17 +381,6 @@ function App() {
         currentData[selectedPlatform] = { favorites: newFavorites, deleted: newDeleted };
         localStorage.setItem('platformData', JSON.stringify(currentData));
       }
-      
-      setPlatformData(prev => ({
-        ...prev,
-        [selectedPlatform]: {
-          favorites: newFavorites,
-          deleted: newDeleted
-        }
-      }));
-
-      // Add game back to the main list
-      setGames(prev => [game, ...prev]);
     } catch (error) {
       console.error('Failed to revert game:', error);
     }
