@@ -348,6 +348,8 @@ function App() {
   const handleRevertGame = async (game, fromList) => {
     if (!selectedPlatform || !isAuthenticated) return;
 
+    console.log('🔄 Reverting game:', game.name, 'from list:', fromList);
+
     try {
       const currentData = platformData[selectedPlatform] || { favorites: [], deleted: [] };
       let newFavorites = currentData.favorites;
@@ -355,8 +357,10 @@ function App() {
       
       if (fromList === 'favorites') {
         newFavorites = currentData.favorites.filter(g => g.id !== game.id);
+        console.log('✅ Removed from favorites, new favorites count:', newFavorites.length);
       } else if (fromList === 'deleted') {
         newDeleted = currentData.deleted.filter(g => g.id !== game.id);
+        console.log('✅ Removed from deleted, new deleted count:', newDeleted.length);
       }
       
       // Update UI immediately (optimistic update)
@@ -370,10 +374,12 @@ function App() {
 
       // Add game back to the main list immediately
       setGames(prev => [game, ...prev]);
+      console.log('✅ Added game back to main list');
       
       // Save to database in background
       try {
         await databaseApi.updatePlatformData(selectedPlatform, newFavorites, newDeleted);
+        console.log('✅ Saved to database successfully');
       } catch (error) {
         console.error('Failed to update database, using localStorage:', error);
         // Fallback to localStorage
