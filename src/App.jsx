@@ -401,24 +401,42 @@ function App() {
     }
   };
 
-  const handleRevertGame = async (game, fromList) => {
+  const handleRevertGame = async (game, fromList, toList = 'all') => {
     if (!selectedPlatform || !isAuthenticated) return;
 
-    console.log('🔄 Reverting game:', game.name, 'from list:', fromList);
+    console.log('🔄 Reverting game:', game.name, 'from list:', fromList, 'to list:', toList);
 
     try {
       const currentData = platformData[selectedPlatform] || { favorites: [], deleted: [] };
-      let newFavorites = [...currentData.favorites]; // Keep favorites unchanged
-      let newDeleted = [...currentData.deleted]; // Keep deleted unchanged
+      let newFavorites = [...currentData.favorites];
+      let newDeleted = [...currentData.deleted];
       
+      // Remove from source list
       if (fromList === 'favorites') {
-        // Remove from favorites only
         newFavorites = currentData.favorites.filter(g => g.id !== game.id);
         console.log('✅ Removed from favorites, new favorites count:', newFavorites.length);
       } else if (fromList === 'deleted') {
-        // Remove from deleted only
         newDeleted = currentData.deleted.filter(g => g.id !== game.id);
         console.log('✅ Removed from deleted, new deleted count:', newDeleted.length);
+      }
+      
+      // Add to destination list
+      if (toList === 'favorites') {
+        // Add to favorites (avoid duplicates)
+        if (!newFavorites.some(g => g.id === game.id)) {
+          newFavorites.push(game);
+          console.log('✅ Added to favorites, new favorites count:', newFavorites.length);
+        }
+      } else if (toList === 'deleted') {
+        // Add to deleted (avoid duplicates)
+        if (!newDeleted.some(g => g.id === game.id)) {
+          newDeleted.push(game);
+          console.log('✅ Added to deleted, new deleted count:', newDeleted.length);
+        }
+      } else if (toList === 'all') {
+        // Add back to main list (unjudged games)
+        setGames(prev => [game, ...prev]);
+        console.log('✅ Added game back to main list');
       }
       
       // Update UI immediately (optimistic update)
@@ -429,13 +447,9 @@ function App() {
           deleted: newDeleted
         }
       }));
-
-      // Add game back to the main list immediately
-      setGames(prev => [game, ...prev]);
-      console.log('✅ Added game back to main list');
       
-      // Switch to "All Games" view when reverting
-      if (viewMode !== 'all') {
+      // Only switch to "All Games" view if moving to unjudged games
+      if (toList === 'all' && viewMode !== 'all') {
         setViewMode('all');
         console.log('✅ Switched to All Games view');
       }

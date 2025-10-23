@@ -92,14 +92,50 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
             )}
             
             {(viewMode === 'favorites' || viewMode === 'deleted') && (
-              <button 
-                className="btn btn-secondary"
-                onClick={() => onRevert(game, viewMode)}
-                title="Move back to judging list"
-              >
-                <RotateCcw size={14} />
-                Revert
-              </button>
+              <div className="revert-options">
+                <div className="revert-buttons">
+                  {viewMode === 'favorites' && (
+                    <>
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => onRevert(game, 'favorites', 'all')}
+                        title="Move to unjudged games"
+                      >
+                        <RotateCcw size={12} />
+                        To Unjudged
+                      </button>
+                      <button 
+                        className="btn btn-danger btn-sm"
+                        onClick={() => onRevert(game, 'favorites', 'deleted')}
+                        title="Move to deleted list"
+                      >
+                        <Trash2 size={12} />
+                        To Deleted
+                      </button>
+                    </>
+                  )}
+                  {viewMode === 'deleted' && (
+                    <>
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => onRevert(game, 'deleted', 'all')}
+                        title="Move to unjudged games"
+                      >
+                        <RotateCcw size={12} />
+                        To Unjudged
+                      </button>
+                      <button 
+                        className="btn btn-success btn-sm"
+                        onClick={() => onRevert(game, 'deleted', 'favorites')}
+                        title="Move to favorites"
+                      >
+                        <Heart size={12} />
+                        To Favorites
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}
