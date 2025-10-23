@@ -1186,8 +1186,8 @@ function App() {
         />
       )}
 
-      {/* Nintendo Switch Total Download Size */}
-      {isAuthenticated && selectedPlatform === '130' && favorites.length > 0 && (
+      {/* Nintendo Switch Total Download Size - Only show in favorites view */}
+      {isAuthenticated && selectedPlatform === '130' && viewMode === 'favorites' && favorites.length > 0 && (
         <div style={{ 
           backgroundColor: 'white', 
           padding: '15px', 
