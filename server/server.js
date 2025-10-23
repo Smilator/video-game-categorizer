@@ -321,27 +321,27 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       // Look for game file size using multiple patterns
       let sizeMatch = null;
       
-      // Try the specific CSS class first
-      sizeMatch = directHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
+      // Try the specific CSS class first - look for Nintendo Switch: X.X GB format
+      sizeMatch = directHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>.*?Nintendo Switch:\s*([^<]+)</i);
       
       if (!sizeMatch) {
         // Try alternative pattern for the same class
-        sizeMatch = directHtml.match(/class="[^"]*sc-1237z5p-4 fHqHTF[^"]*"[^>]*>([^<]+)</i);
+        sizeMatch = directHtml.match(/class="[^"]*sc-1237z5p-4 fHqHTF[^"]*"[^>]*>.*?Nintendo Switch:\s*([^<]+)</i);
       }
       
       if (!sizeMatch) {
-        // Try to find any element with the class containing "fHqHTF"
-        sizeMatch = directHtml.match(/class="[^"]*fHqHTF[^"]*"[^>]*>([^<]+)</i);
+        // Try to find any element with the class containing "fHqHTF" and Nintendo Switch text
+        sizeMatch = directHtml.match(/class="[^"]*fHqHTF[^"]*"[^>]*>.*?Nintendo Switch:\s*([^<]+)</i);
+      }
+      
+      if (!sizeMatch) {
+        // Try to find Nintendo Switch: X.X GB pattern anywhere
+        sizeMatch = directHtml.match(/Nintendo Switch:\s*([^<]+)/i);
       }
       
       if (!sizeMatch) {
         // Try to find "Game file size" section
         sizeMatch = directHtml.match(/Game file size[^>]*>([^<]+)</i);
-      }
-      
-      if (!sizeMatch) {
-        // Try to find Nintendo Switch specific size
-        sizeMatch = directHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
       }
       
       // Debug: log a sample of the HTML to see what we're working with
@@ -441,27 +441,27 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
     // Look for game file size using multiple patterns
     let sizeMatch = null;
     
-    // Try the specific CSS class first
-    sizeMatch = productHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
+    // Try the specific CSS class first - look for Nintendo Switch: X.X GB format
+    sizeMatch = productHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>.*?Nintendo Switch:\s*([^<]+)</i);
     
     if (!sizeMatch) {
       // Try alternative pattern for the same class
-      sizeMatch = productHtml.match(/class="[^"]*sc-1237z5p-4 fHqHTF[^"]*"[^>]*>([^<]+)</i);
+      sizeMatch = productHtml.match(/class="[^"]*sc-1237z5p-4 fHqHTF[^"]*"[^>]*>.*?Nintendo Switch:\s*([^<]+)</i);
     }
     
     if (!sizeMatch) {
-      // Try to find any element with the class containing "fHqHTF"
-      sizeMatch = productHtml.match(/class="[^"]*fHqHTF[^"]*"[^>]*>([^<]+)</i);
+      // Try to find any element with the class containing "fHqHTF" and Nintendo Switch text
+      sizeMatch = productHtml.match(/class="[^"]*fHqHTF[^"]*"[^>]*>.*?Nintendo Switch:\s*([^<]+)</i);
+    }
+    
+    if (!sizeMatch) {
+      // Try to find Nintendo Switch: X.X GB pattern anywhere
+      sizeMatch = productHtml.match(/Nintendo Switch:\s*([^<]+)/i);
     }
     
     if (!sizeMatch) {
       // Try to find "Game file size" section
       sizeMatch = productHtml.match(/Game file size[^>]*>([^<]+)</i);
-    }
-    
-    if (!sizeMatch) {
-      // Try to find Nintendo Switch specific size
-      sizeMatch = productHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
     }
     
     // Debug: log a sample of the HTML to see what we're working with
