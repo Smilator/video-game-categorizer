@@ -316,7 +316,32 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
         }
       });
       
-      const directHtml = directResponse.data;
+      let directHtml = directResponse.data;
+      
+      // Check if there's an age verification screen
+      if (directHtml.includes('name="month"') && directHtml.includes('name="day"') && directHtml.includes('name="year"')) {
+        console.log(`🔞 Age verification required for ${gameName}, handling...`);
+        
+        try {
+          // Submit age verification form
+          const ageVerificationResponse = await axios.post(directProductUrl, new URLSearchParams({
+            month: '10',
+            day: '10', 
+            year: '1990'
+          }), {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Referer': directProductUrl
+            }
+          });
+          
+          directHtml = ageVerificationResponse.data;
+          console.log(`✅ Age verification completed for ${gameName}`);
+        } catch (ageError) {
+          console.error(`❌ Age verification failed for ${gameName}:`, ageError.message);
+        }
+      }
       
       // Look for game file size using multiple patterns
       let sizeMatch = null;
@@ -437,7 +462,32 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       }
     });
     
-    const productHtml = productResponse.data;
+    let productHtml = productResponse.data;
+    
+    // Check if there's an age verification screen
+    if (productHtml.includes('name="month"') && productHtml.includes('name="day"') && productHtml.includes('name="year"')) {
+      console.log(`🔞 Age verification required for ${gameName} on product page, handling...`);
+      
+      try {
+        // Submit age verification form
+        const ageVerificationResponse = await axios.post(productUrl, new URLSearchParams({
+          month: '10',
+          day: '10', 
+          year: '1990'
+        }), {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Referer': productUrl
+          }
+        });
+        
+        productHtml = ageVerificationResponse.data;
+        console.log(`✅ Age verification completed for ${gameName} on product page`);
+      } catch (ageError) {
+        console.error(`❌ Age verification failed for ${gameName} on product page:`, ageError.message);
+      }
+    }
     
     // Look for game file size using multiple patterns
     let sizeMatch = null;
