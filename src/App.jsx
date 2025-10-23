@@ -117,32 +117,51 @@ function App() {
   const calculateTotalSize = () => {
     if (selectedPlatform !== '130' || !isAuthenticated) return null;
     
+    console.log('🧮 Calculating total size for favorites:', favorites.length);
+    console.log('📊 Game sizes available:', gameSizes);
+    
     const totalSizeInMB = favorites.reduce((total, game) => {
-      const sizeStr = gameSizes[game.name]; // Fixed: use game.name instead of game.id
-      if (!sizeStr) return total;
+      const sizeStr = gameSizes[game.name];
+      console.log(`🔍 Processing ${game.name}: size = "${sizeStr}"`);
+      
+      if (!sizeStr) {
+        console.log(`❌ No size for ${game.name}`);
+        return total;
+      }
       
       // Parse size string (e.g., "2.5 GB", "500 MB")
       const match = sizeStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
-      if (!match) return total;
+      if (!match) {
+        console.log(`❌ Could not parse size for ${game.name}: "${sizeStr}"`);
+        return total;
+      }
       
       const value = parseFloat(match[1]);
       const unit = match[2].toUpperCase();
       
+      let sizeInMB = 0;
       if (unit === 'GB') {
-        return total + (value * 1024); // Convert GB to MB
+        sizeInMB = value * 1024; // Convert GB to MB
+        console.log(`✅ ${game.name}: ${value} GB = ${sizeInMB} MB`);
       } else if (unit === 'MB') {
-        return total + value;
+        sizeInMB = value;
+        console.log(`✅ ${game.name}: ${value} MB`);
       }
       
-      return total;
+      return total + sizeInMB;
     }, 0);
+    
+    console.log(`🧮 Total size in MB: ${totalSizeInMB}`);
     
     if (totalSizeInMB === 0) return null;
     
     // Format total size
     if (totalSizeInMB >= 1024) {
-      return `${(totalSizeInMB / 1024).toFixed(1)} GB`;
+      const totalGB = (totalSizeInMB / 1024).toFixed(1);
+      console.log(`📊 Final total: ${totalGB} GB`);
+      return `${totalGB} GB`;
     } else {
+      console.log(`📊 Final total: ${totalSizeInMB.toFixed(0)} MB`);
       return `${totalSizeInMB.toFixed(0)} MB`;
     }
   };

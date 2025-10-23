@@ -318,25 +318,31 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       
       const directHtml = directResponse.data;
       
-      // Look for game file size in the direct product page
-      let sizeMatch = directHtml.match(/Game file size[^>]*>([^<]+)</i);
+      // Look for game file size using the specific CSS class
+      let sizeMatch = directHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
       
       if (!sizeMatch) {
-        // Try to find the specific "Game file size" section
-        const gameFileSizeSection = directHtml.match(/Game file size[^>]*>([^<]+)</i);
-        if (gameFileSizeSection) {
-          sizeMatch = gameFileSizeSection;
-        }
+        // Try alternative pattern for the same class
+        sizeMatch = directHtml.match(/class="[^"]*sc-1237z5p-4 fHqHTF[^"]*"[^>]*>([^<]+)</i);
       }
       
       if (!sizeMatch) {
-        // Try to find Nintendo Switch specific size
-        sizeMatch = directHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
+        // Fallback: try to find Game file size section
+        sizeMatch = directHtml.match(/Game file size[^>]*>([^<]+)</i);
       }
       
       if (sizeMatch) {
-        const fileSize = sizeMatch[1].trim();
+        let fileSize = sizeMatch[1].trim();
         console.log(`✅ Found size for ${gameName} via direct URL: ${fileSize}`);
+        
+        // Convert MB to GB if needed
+        const mbMatch = fileSize.match(/(\d+(?:\.\d+)?)\s*MB/i);
+        if (mbMatch) {
+          const mbValue = parseFloat(mbMatch[1]);
+          const gbValue = (mbValue / 1024).toFixed(1);
+          fileSize = `${gbValue} GB`;
+          console.log(`🔄 Converted ${mbValue} MB to ${fileSize}`);
+        }
         
         // Save to database
         try {
@@ -392,23 +398,31 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
     
     const productHtml = productResponse.data;
     
-    // Look for game file size in the product page HTML
-    // Try multiple patterns to catch different formats
-    let sizeMatch = productHtml.match(/Game file size[^>]*>([^<]+)</i);
+    // Look for game file size using the specific CSS class
+    let sizeMatch = productHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
     
     if (!sizeMatch) {
-      // Try to find Nintendo Switch specific size
-      sizeMatch = productHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
+      // Try alternative pattern for the same class
+      sizeMatch = productHtml.match(/class="[^"]*sc-1237z5p-4 fHqHTF[^"]*"[^>]*>([^<]+)</i);
     }
     
     if (!sizeMatch) {
-      // Try to find size in a more specific context
-      sizeMatch = productHtml.match(/<[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)<\/[^>]*>/i);
+      // Fallback: try to find Game file size section
+      sizeMatch = productHtml.match(/Game file size[^>]*>([^<]+)</i);
     }
     
     if (sizeMatch) {
-      const fileSize = sizeMatch[1].trim();
+      let fileSize = sizeMatch[1].trim();
       console.log(`✅ Found size for ${gameName}: ${fileSize}`);
+      
+      // Convert MB to GB if needed
+      const mbMatch = fileSize.match(/(\d+(?:\.\d+)?)\s*MB/i);
+      if (mbMatch) {
+        const mbValue = parseFloat(mbMatch[1]);
+        const gbValue = (mbValue / 1024).toFixed(1);
+        fileSize = `${gbValue} GB`;
+        console.log(`🔄 Converted ${mbValue} MB to ${fileSize}`);
+      }
       
       // Save to database
       try {
