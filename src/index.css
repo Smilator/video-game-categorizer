@@ -340,6 +340,25 @@ body {
   margin-bottom: 10px;
 }
 
+.game-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.nintendo-link {
+  background: linear-gradient(135deg, #e60012 0%, #ff6b6b 100%) !important;
+  color: white !important;
+  border: 1px solid #e60012 !important;
+}
+
+.nintendo-link:hover {
+  background: linear-gradient(135deg, #cc000f 0%, #ff5252 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(230, 0, 18, 0.3);
+}
+
 .collected-status {
   margin-bottom: 12px;
 }

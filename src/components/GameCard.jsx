@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { Heart, Trash2, ExternalLink, RotateCcw, Edit2, Check, X } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
 
+// Function to normalize game names for Nintendo.com URLs
+function normalizeGameNameForSearch(gameName) {
+  return gameName
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/--+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
 function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize, onEditGameSize, selectedPlatform }) {
   const [isEditingSize, setIsEditingSize] = useState(false);
   const [editedSize, setEditedSize] = useState(gameSize || '');
@@ -123,8 +133,9 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
           </div>
         )}
         
-        {/* IGDB Link Button */}
-        <div className="game-link">
+        {/* Game Links */}
+        <div className="game-links">
+          {/* IGDB Link Button */}
           <a 
             href={`https://www.igdb.com/games/${game.slug}`}
             target="_blank"
@@ -135,6 +146,20 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
             <ExternalLink size={14} />
             View on IGDB
           </a>
+          
+          {/* Nintendo.com Link Button (Nintendo Switch only) */}
+          {selectedPlatform === '130' && (
+            <a 
+              href={`https://www.nintendo.com/us/store/products/${normalizeGameNameForSearch(game.name)}-switch/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-link nintendo-link"
+              title="View on Nintendo.com"
+            >
+              <ExternalLink size={14} />
+              View on Nintendo.com
+            </a>
+          )}
         </div>
         
         {/* Collected Status (only for favorites and authenticated users) */}
