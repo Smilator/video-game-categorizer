@@ -263,47 +263,118 @@ app.get('/api/game/:gameId', async (req, res) => {
   }
 });
 
+// Function to normalize game names for Nintendo.com search
+function normalizeGameNameForSearch(gameName) {
+  return gameName
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove special characters except spaces and hyphens
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/--+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
 // Nintendo.com scraping endpoint for game file sizes
 app.get('/api/nintendo-size/:gameName', async (req, res) => {
   try {
     const { gameName } = req.params;
     
-    console.log(`🔍 Searching Nintendo.com for: ${gameName}`);
+    console.log(`🔍 Fetching Nintendo size for: ${gameName}`);
     
-    // Search Nintendo.com for the game
+    // Try direct product page URL first (based on Nintendo.com URL pattern)
+    const normalizedName = normalizeGameNameForSearch(gameName);
+    const directProductUrl = `https://www.nintendo.com/us/store/products/${normalizedName}-switch/`;
+    
+    console.log(`🔗 Trying direct URL: ${directProductUrl}`);
+    
+    try {
+      const directResponse = await axios.get(directProductUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+      
+      const directHtml = directResponse.data;
+      
+      // Look for game file size in the direct product page
+      let sizeMatch = directHtml.match(/Game file size[^>]*>([^<]+)</i);
+      
+      if (!sizeMatch) {
+        sizeMatch = directHtml.match(/file size[^>]*>([^<]+)</i);
+      }
+      
+      if (!sizeMatch) {
+        sizeMatch = directHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+      }
+      
+      if (sizeMatch) {
+        const fileSize = sizeMatch[1].trim();
+        console.log(`✅ Found size for ${gameName} via direct URL: ${fileSize}`);
+        res.json({ gameName, fileSize, found: true, productUrl: directProductUrl });
+        return;
+      }
+    } catch (directError) {
+      console.log(`❌ Direct URL failed for ${gameName}, trying search...`);
+    }
+    
+    // Fallback: search Nintendo.com for the game to find the specific product page
     const searchUrl = `https://www.nintendo.com/search/?q=${encodeURIComponent(gameName)}&f=software`;
     
-    const response = await axios.get(searchUrl, {
+    const searchResponse = await axios.get(searchUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
     });
     
-    // Parse the HTML to find game file size
-    const html = response.data;
+    const searchHtml = searchResponse.data;
     
-    // Look for game file size pattern
-    const sizeMatch = html.match(/Game file size[^>]*>([^<]+)</i);
+    // Look for product page links in the search results
+    const productLinkMatch = searchHtml.match(/href="(\/us\/store\/products\/[^"]+)"/i);
+    
+    if (!productLinkMatch) {
+      console.log(`❌ No product page found for ${gameName}`);
+      res.json({ gameName, fileSize: null, found: false, error: 'No product page found' });
+      return;
+    }
+    
+    const productPath = productLinkMatch[1];
+    const productUrl = `https://www.nintendo.com${productPath}`;
+    
+    console.log(`🔗 Found product page: ${productUrl}`);
+    
+    // Now fetch the specific product page
+    const productResponse = await axios.get(productUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    const productHtml = productResponse.data;
+    
+    // Look for game file size in the product page HTML
+    // Try multiple patterns to catch different formats
+    let sizeMatch = productHtml.match(/Game file size[^>]*>([^<]+)</i);
+    
+    if (!sizeMatch) {
+      // Try alternative pattern
+      sizeMatch = productHtml.match(/file size[^>]*>([^<]+)</i);
+    }
+    
+    if (!sizeMatch) {
+      // Try looking for size patterns like "11 GB", "2.5 GB", etc.
+      sizeMatch = productHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+    }
     
     if (sizeMatch) {
       const fileSize = sizeMatch[1].trim();
-      console.log(`✅ Found file size for ${gameName}: ${fileSize}`);
-      res.json({ 
-        gameName, 
-        fileSize,
-        found: true 
-      });
+      console.log(`✅ Found size for ${gameName}: ${fileSize}`);
+      res.json({ gameName, fileSize, found: true, productUrl });
     } else {
-      console.log(`❌ File size not found for ${gameName}`);
-      res.json({ 
-        gameName, 
-        fileSize: null,
-        found: false 
-      });
+      console.log(`❌ No size found for ${gameName} on product page`);
+      res.json({ gameName, fileSize: null, found: false, error: 'No size found on product page', productUrl });
     }
     
   } catch (error) {
-    console.error(`Error scraping Nintendo.com for ${req.params.gameName}:`, error.message);
+    console.error(`❌ Error fetching Nintendo size for ${req.params.gameName}:`, error.message);
     res.json({ 
       gameName: req.params.gameName, 
       fileSize: null,
