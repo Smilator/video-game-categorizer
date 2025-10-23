@@ -32,6 +32,7 @@ function App() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [xmlImportProgress, setXmlImportProgress] = useState({ current: 0, total: 0, isImporting: false });
   const [fetchedGameIds, setFetchedGameIds] = useState(new Set());
+  const [currentBatchNumber, setCurrentBatchNumber] = useState(1);
 
   // Helper functions for favorites and deleted lists
   const favorites = selectedPlatform ? (platformData[selectedPlatform]?.favorites || []) : [];
@@ -228,7 +229,7 @@ function App() {
       setIsLoadingMore(true);
       setError(null);
       
-      console.log(`🎮 Fetching batch of unjudged games for platform ${platformId}, starting from offset: ${offset}`);
+      console.log(`🎮 Fetching batch of games for platform ${platformId}, starting from offset: ${offset}`);
       
       // Get current platform's processed games (favorites + deleted)
       const currentPlatformProcessed = new Set();
@@ -240,80 +241,65 @@ function App() {
       
       console.log(`📊 Already processed ${currentPlatformProcessed.size} games for this platform`);
       
-      // Cycle through ALL games until we find 500 unjudged ones
-      let allUnprocessedGames = [];
+      // Try batches of 500 until we find one with unjudged games
       let currentOffset = offset;
-      let totalGamesFetched = 0;
-      let cyclesCompleted = 0;
-      const maxCycles = 20; // Prevent infinite loops
+      let batchNumber = Math.floor(offset / 500) + 1;
+      let foundUnjudgedGames = false;
+      const maxBatches = 50; // Prevent infinite loops
       
-      while (allUnprocessedGames.length < 500 && cyclesCompleted < maxCycles) {
-        console.log(`🔄 Cycle ${cyclesCompleted + 1}: Fetching games from offset ${currentOffset}`);
+      while (!foundUnjudgedGames && batchNumber <= maxBatches) {
+        console.log(`📦 Loading Batch ${batchNumber} (offset: ${currentOffset})`);
+        setCurrentBatchNumber(batchNumber);
         
-        // Fetch a batch of games from IGDB
+        // Fetch a batch of 500 games from IGDB
         const gamesData = await igdbApi.getGamesByPlatform(platformId, currentOffset, 500);
-        totalGamesFetched += gamesData.length;
         
         if (gamesData.length === 0) {
           console.log('🏁 No more games available from IGDB');
           break;
         }
         
-        console.log(`📥 Fetched ${gamesData.length} games from IGDB (total: ${totalGamesFetched})`);
+        console.log(`📥 Fetched ${gamesData.length} games from IGDB`);
         
         // Filter out games that have already been processed
-        const unprocessedInThisBatch = gamesData.filter(game => !currentPlatformProcessed.has(game.id));
-        console.log(`✅ Found ${unprocessedInThisBatch.length} unprocessed games in this batch`);
+        const unprocessedGames = gamesData.filter(game => !currentPlatformProcessed.has(game.id));
+        console.log(`✅ Found ${unprocessedGames.length} unprocessed games in this batch`);
         
-        // Add unprocessed games to our collection
-        allUnprocessedGames = allUnprocessedGames.concat(unprocessedInThisBatch);
-        
-        // Move to next batch
-        currentOffset += 500;
-        cyclesCompleted++;
-        
-        // If we've gone through all available games, reset to beginning
-        if (gamesData.length < 500) {
-          console.log('🔄 Reached end of games, cycling back to beginning');
-          currentOffset = 0;
+        if (unprocessedGames.length > 0) {
+          // Found unjudged games! Use this batch
+          console.log(`🎯 Using Batch ${batchNumber} with ${unprocessedGames.length} unjudged games`);
+          setGames(unprocessedGames);
+          foundUnjudgedGames = true;
+        } else {
+          // This batch is empty, try the next one
+          console.log(`⏭️ Batch ${batchNumber} is empty, trying next batch...`);
+          currentOffset += 500;
+          batchNumber++;
         }
-        
-        console.log(`📊 Total unprocessed games found so far: ${allUnprocessedGames.length}`);
       }
       
-      if (cyclesCompleted >= maxCycles) {
-        console.log('⚠️ Reached maximum cycles limit, stopping search');
+      if (!foundUnjudgedGames) {
+        console.log('🎉 All games have been judged! No unjudged games remaining.');
+        setGames([]);
+        currentOffset = 0; // Reset to beginning
       }
       
-      // Take exactly 500 games (or all available if less than 500)
-      const finalBatch = allUnprocessedGames.slice(0, 500);
-      
-      console.log(`🎯 Final batch: ${finalBatch.length} unjudged games ready for judging`);
-      console.log(`📊 Total games searched through: ${totalGamesFetched}`);
-      console.log(`🔄 Cycles completed: ${cyclesCompleted}`);
-      
-      // Set the games for judging
-      setGames(finalBatch);
-      setCurrentOffset(currentOffset);
+      // Update offset for next batch
+      const nextOffset = foundUnjudgedGames ? currentOffset + 500 : 0;
+      setCurrentOffset(nextOffset);
       
       // Save the current batch position to localStorage
       try {
         const batchPositions = JSON.parse(localStorage.getItem('batchPositions') || '{}');
-        batchPositions[platformId] = currentOffset;
+        batchPositions[platformId] = nextOffset;
         localStorage.setItem('batchPositions', JSON.stringify(batchPositions));
-        console.log(`💾 Saved batch position for platform ${platformId}: offset ${currentOffset}`);
+        console.log(`💾 Saved batch position for platform ${platformId}: offset ${nextOffset}`);
       } catch (error) {
         console.error('Failed to save batch position:', error);
       }
       
       // Clear any previous fetched game IDs since we're starting fresh
       setFetchedGameIds(new Set());
-      
-      // If no unjudged games found, show appropriate message
-      if (finalBatch.length === 0) {
-        console.log('🎉 All games have been judged! No unjudged games remaining.');
-        setGames([]);
-      }
       
     } catch (err) {
       setError(err.message);
@@ -1051,7 +1037,7 @@ function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#374151' }}>
-                      📦 Current Batch: {getFilteredGames().length} games remaining
+                      📦 Batch {Math.floor(currentOffset / 500) + 1}: {getFilteredGames().length} games remaining
                     </p>
                     {getFilteredGames().length <= 10 && (
                       <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
@@ -1128,9 +1114,27 @@ function App() {
           {isLoadingMore && viewMode === 'all' && isAuthenticated && (
             <div style={{ textAlign: 'center', padding: '20px' }}>
               <Loader2 size={24} className="loading-spinner" />
-              <p>🔍 Cycling through all games to find 500 unjudged ones...</p>
+              <p>📦 Loading Batch {currentBatchNumber}...</p>
               <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '10px' }}>
-                This may take a moment as we search through all available games
+                Searching for unjudged games in this batch
+              </p>
+              <div style={{ 
+                width: '100%', 
+                backgroundColor: '#e5e7eb', 
+                borderRadius: '10px', 
+                margin: '15px 0',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${Math.min((currentBatchNumber / 50) * 100, 100)}%`,
+                  height: '8px',
+                  backgroundColor: '#3b82f6',
+                  transition: 'width 0.3s ease',
+                  borderRadius: '10px'
+                }}></div>
+              </div>
+              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '5px 0 0 0' }}>
+                Batch {currentBatchNumber} of up to 50
               </p>
             </div>
           )}
@@ -1142,7 +1146,7 @@ function App() {
                 🎉 Great job! You've finished judging all games in this batch.
               </p>
               <p style={{ marginBottom: '15px', color: '#6b7280', fontSize: '14px' }}>
-                Next batch will cycle through all games to find 500 more unjudged ones.
+                Next batch will load the next 500 games and skip any that are already judged.
               </p>
               <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button
@@ -1158,7 +1162,7 @@ function App() {
                     fontWeight: 'bold'
                   }}
                 >
-                  🔍 Find Next 500 Unjudged Games
+                  📦 Load Next Batch (500 games)
                 </button>
                 <button
                   onClick={() => {
