@@ -299,11 +299,16 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       let sizeMatch = directHtml.match(/Game file size[^>]*>([^<]+)</i);
       
       if (!sizeMatch) {
-        sizeMatch = directHtml.match(/file size[^>]*>([^<]+)</i);
+        // Try to find the specific "Game file size" section
+        const gameFileSizeSection = directHtml.match(/Game file size[^>]*>([^<]+)</i);
+        if (gameFileSizeSection) {
+          sizeMatch = gameFileSizeSection;
+        }
       }
       
       if (!sizeMatch) {
-        sizeMatch = directHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+        // Try to find Nintendo Switch specific size
+        sizeMatch = directHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
       }
       
       if (sizeMatch) {
@@ -355,13 +360,13 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
     let sizeMatch = productHtml.match(/Game file size[^>]*>([^<]+)</i);
     
     if (!sizeMatch) {
-      // Try alternative pattern
-      sizeMatch = productHtml.match(/file size[^>]*>([^<]+)</i);
+      // Try to find Nintendo Switch specific size
+      sizeMatch = productHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
     }
     
     if (!sizeMatch) {
-      // Try looking for size patterns like "11 GB", "2.5 GB", etc.
-      sizeMatch = productHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+      // Try to find size in a more specific context
+      sizeMatch = productHtml.match(/<[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)<\/[^>]*>/i);
     }
     
     if (sizeMatch) {

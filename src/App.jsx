@@ -95,7 +95,7 @@ function App() {
     if (selectedPlatform !== '130' || !isAuthenticated) return null;
     
     const totalSizeInMB = favorites.reduce((total, game) => {
-      const sizeStr = gameSizes[game.id];
+      const sizeStr = gameSizes[game.name]; // Fixed: use game.name instead of game.id
       if (!sizeStr) return total;
       
       // Parse size string (e.g., "2.5 GB", "500 MB")
@@ -122,6 +122,14 @@ function App() {
     } else {
       return `${totalSizeInMB.toFixed(0)} MB`;
     }
+  };
+
+  const handleEditGameSize = (gameName, newSize) => {
+    setGameSizes(prev => ({
+      ...prev,
+      [gameName]: newSize
+    }));
+    console.log(`📝 Manually edited size for ${gameName}: ${newSize}`);
   };
 
   // Function to check if a game is favorited on other platforms
@@ -1248,7 +1256,8 @@ function App() {
                   viewMode={viewMode}
                   isAuthenticated={isAuthenticated}
                   crossPlatformInfo={getCrossPlatformInfo(game)}
-                  gameSize={gameSizes[game.id]}
+                  gameSize={gameSizes[game.name]}
+                  onEditGameSize={handleEditGameSize}
                 />
               ))}
               </div>

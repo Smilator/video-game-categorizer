@@ -1,11 +1,26 @@
-import React from 'react';
-import { Heart, Trash2, ExternalLink, RotateCcw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Heart, Trash2, ExternalLink, RotateCcw, Edit2, Check, X } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
 
-function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize }) {
+function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize, onEditGameSize }) {
+  const [isEditingSize, setIsEditingSize] = useState(false);
+  const [editedSize, setEditedSize] = useState(gameSize || '');
+  
   const coverUrl = game.cover 
     ? igdbApi.getCoverImageUrl(game.cover.image_id, 'cover_big')
     : null;
+    
+  const handleSaveSize = () => {
+    if (onEditGameSize) {
+      onEditGameSize(game.name, editedSize);
+    }
+    setIsEditingSize(false);
+  };
+  
+  const handleCancelEdit = () => {
+    setEditedSize(gameSize || '');
+    setIsEditingSize(false);
+  };
 
   return (
     <div className={`game-card ${isCollected ? 'collected' : ''}`}>
@@ -39,11 +54,72 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
         )}
         
         {/* Game file size (Nintendo Switch only) */}
-        {gameSize && (
+        {(gameSize || isEditingSize) && (
           <div className="game-size-chip">
-            <span className="size-text">
-              💾 {gameSize}
-            </span>
+            {isEditingSize ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="size-text">💾</span>
+                <input
+                  type="text"
+                  value={editedSize}
+                  onChange={(e) => setEditedSize(e.target.value)}
+                  placeholder="Enter size (e.g., 11 GB)"
+                  style={{
+                    padding: '4px 8px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    width: '80px'
+                  }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveSize}
+                  style={{
+                    background: '#28a745',
+                    border: 'none',
+                    color: 'white',
+                    borderRadius: '3px',
+                    padding: '2px 6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Check size={12} />
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  style={{
+                    background: '#dc3545',
+                    border: 'none',
+                    color: 'white',
+                    borderRadius: '3px',
+                    padding: '2px 6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span className="size-text">
+                  💾 {gameSize || 'No size'}
+                </span>
+                <button
+                  onClick={() => setIsEditingSize(true)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    borderRadius: '3px'
+                  }}
+                  title="Edit size"
+                >
+                  <Edit2 size={12} color="#666" />
+                </button>
+              </div>
+            )}
           </div>
         )}
         
