@@ -344,28 +344,45 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
         sizeMatch = directHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
       }
       
-      if (!sizeMatch) {
-        // Try to find any size pattern in the HTML
-        sizeMatch = directHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
-      }
-      
       // Debug: log a sample of the HTML to see what we're working with
       if (!sizeMatch) {
         console.log(`🔍 No size found for ${gameName}, HTML sample:`, directHtml.substring(0, 1000));
+        // Try to find any size pattern in the HTML as last resort, but be more specific
+        sizeMatch = directHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+        if (sizeMatch) {
+          console.log(`⚠️ Found fallback size match: "${sizeMatch[1]}" - this might be wrong!`);
+        }
       }
       
       if (sizeMatch) {
         let fileSize = sizeMatch[1].trim();
         console.log(`✅ Found size for ${gameName} via direct URL: ${fileSize}`);
         
-        // Convert MB to GB if needed
-        const mbMatch = fileSize.match(/(\d+(?:\.\d+)?)\s*MB/i);
-        if (mbMatch) {
-          const mbValue = parseFloat(mbMatch[1]);
-          const gbValue = (mbValue / 1024).toFixed(1);
-          fileSize = `${gbValue} GB`;
-          console.log(`🔄 Converted ${mbValue} MB to ${fileSize}`);
+        // Validate the size - reject obviously wrong sizes
+        const sizeValidation = fileSize.match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
+        if (sizeValidation) {
+          const value = parseFloat(sizeValidation[1]);
+          const unit = sizeValidation[2].toUpperCase();
+          
+          // Reject sizes that are obviously wrong (too small or too large)
+          if ((unit === 'GB' && (value < 0.1 || value > 100)) || 
+              (unit === 'MB' && (value < 10 || value > 100000))) {
+            console.log(`❌ Rejected suspicious size for ${gameName}: ${fileSize} (value: ${value} ${unit})`);
+            sizeMatch = null;
+          } else {
+            console.log(`✅ Valid size for ${gameName}: ${fileSize}`);
+          }
         }
+        
+        if (sizeMatch) {
+          // Convert MB to GB if needed
+          const mbMatch = fileSize.match(/(\d+(?:\.\d+)?)\s*MB/i);
+          if (mbMatch) {
+            const mbValue = parseFloat(mbMatch[1]);
+            const gbValue = (mbValue / 1024).toFixed(1);
+            fileSize = `${gbValue} GB`;
+            console.log(`🔄 Converted ${mbValue} MB to ${fileSize}`);
+          }
         
         // Save to database
         try {
@@ -447,28 +464,45 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       sizeMatch = productHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
     }
     
-    if (!sizeMatch) {
-      // Try to find any size pattern in the HTML
-      sizeMatch = productHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
-    }
-    
     // Debug: log a sample of the HTML to see what we're working with
     if (!sizeMatch) {
       console.log(`🔍 No size found for ${gameName} on product page, HTML sample:`, productHtml.substring(0, 1000));
+      // Try to find any size pattern in the HTML as last resort, but be more specific
+      sizeMatch = productHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+      if (sizeMatch) {
+        console.log(`⚠️ Found fallback size match: "${sizeMatch[1]}" - this might be wrong!`);
+      }
     }
     
     if (sizeMatch) {
       let fileSize = sizeMatch[1].trim();
       console.log(`✅ Found size for ${gameName}: ${fileSize}`);
       
-      // Convert MB to GB if needed
-      const mbMatch = fileSize.match(/(\d+(?:\.\d+)?)\s*MB/i);
-      if (mbMatch) {
-        const mbValue = parseFloat(mbMatch[1]);
-        const gbValue = (mbValue / 1024).toFixed(1);
-        fileSize = `${gbValue} GB`;
-        console.log(`🔄 Converted ${mbValue} MB to ${fileSize}`);
+      // Validate the size - reject obviously wrong sizes
+      const sizeValidation = fileSize.match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
+      if (sizeValidation) {
+        const value = parseFloat(sizeValidation[1]);
+        const unit = sizeValidation[2].toUpperCase();
+        
+        // Reject sizes that are obviously wrong (too small or too large)
+        if ((unit === 'GB' && (value < 0.1 || value > 100)) || 
+            (unit === 'MB' && (value < 10 || value > 100000))) {
+          console.log(`❌ Rejected suspicious size for ${gameName}: ${fileSize} (value: ${value} ${unit})`);
+          sizeMatch = null;
+        } else {
+          console.log(`✅ Valid size for ${gameName}: ${fileSize}`);
+        }
       }
+      
+      if (sizeMatch) {
+        // Convert MB to GB if needed
+        const mbMatch = fileSize.match(/(\d+(?:\.\d+)?)\s*MB/i);
+        if (mbMatch) {
+          const mbValue = parseFloat(mbMatch[1]);
+          const gbValue = (mbValue / 1024).toFixed(1);
+          fileSize = `${gbValue} GB`;
+          console.log(`🔄 Converted ${mbValue} MB to ${fileSize}`);
+        }
       
       // Save to database
       try {
