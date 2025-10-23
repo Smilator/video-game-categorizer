@@ -2,7 +2,7 @@ import React from 'react';
 import { Heart, Trash2, ExternalLink, RotateCcw } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
 
-function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo }) {
+function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize }) {
   const coverUrl = game.cover 
     ? igdbApi.getCoverImageUrl(game.cover.image_id, 'cover_big')
     : null;
@@ -34,6 +34,15 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
           <div className="cross-platform-chip">
             <span className="chip-text">
               In {crossPlatformInfo.length === 1 ? 'collection' : 'collections'}: {crossPlatformInfo.join(', ')}
+            </span>
+          </div>
+        )}
+        
+        {/* Game file size (Nintendo Switch only) */}
+        {gameSize && (
+          <div className="game-size-chip">
+            <span className="size-text">
+              💾 {gameSize}
             </span>
           </div>
         )}

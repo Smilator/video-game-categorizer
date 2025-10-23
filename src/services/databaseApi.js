@@ -72,6 +72,21 @@ class DatabaseAPI {
       throw new Error('Failed to delete platform data from database');
     }
   }
+
+  async getNintendoGameSize(gameName) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/nintendo-size/${encodeURIComponent(gameName)}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting Nintendo game size:', error);
+      throw new Error('Failed to get game size from Nintendo.com');
+    }
+  }
 }
 
 export default new DatabaseAPI(); 

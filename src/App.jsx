@@ -33,10 +33,82 @@ function App() {
   const [xmlImportProgress, setXmlImportProgress] = useState({ current: 0, total: 0, isImporting: false });
   const [fetchedGameIds, setFetchedGameIds] = useState(new Set());
   const [currentBatchNumber, setCurrentBatchNumber] = useState(1);
+  const [gameSizes, setGameSizes] = useState({}); // Store game file sizes
+  const [isLoadingSizes, setIsLoadingSizes] = useState(false);
 
   // Helper functions for favorites and deleted lists (sorted alphabetically)
   const favorites = selectedPlatform ? (platformData[selectedPlatform]?.favorites || []).sort((a, b) => a.name.localeCompare(b.name)) : [];
   const deleted = selectedPlatform ? (platformData[selectedPlatform]?.deleted || []).sort((a, b) => a.name.localeCompare(b.name)) : [];
+
+  // Function to load game sizes for Nintendo Switch
+  const loadGameSizes = async () => {
+    if (selectedPlatform !== '130' || !isAuthenticated || favorites.length === 0) return;
+    
+    setIsLoadingSizes(true);
+    console.log('🔍 Loading game sizes for Nintendo Switch favorites...');
+    
+    try {
+      const sizePromises = favorites.map(async (game) => {
+        try {
+          const result = await databaseApi.getNintendoGameSize(game.name);
+          return { gameId: game.id, gameName: game.name, ...result };
+        } catch (error) {
+          console.error(`Failed to get size for ${game.name}:`, error);
+          return { gameId: game.id, gameName: game.name, found: false, fileSize: null };
+        }
+      });
+      
+      const results = await Promise.all(sizePromises);
+      const newGameSizes = {};
+      
+      results.forEach(result => {
+        if (result.found && result.fileSize) {
+          newGameSizes[result.gameId] = result.fileSize;
+        }
+      });
+      
+      setGameSizes(newGameSizes);
+      console.log(`✅ Loaded sizes for ${Object.keys(newGameSizes).length} games`);
+    } catch (error) {
+      console.error('Error loading game sizes:', error);
+    } finally {
+      setIsLoadingSizes(false);
+    }
+  };
+
+  // Calculate total download size
+  const calculateTotalSize = () => {
+    if (selectedPlatform !== '130' || !isAuthenticated) return null;
+    
+    const totalSizeInMB = favorites.reduce((total, game) => {
+      const sizeStr = gameSizes[game.id];
+      if (!sizeStr) return total;
+      
+      // Parse size string (e.g., "2.5 GB", "500 MB")
+      const match = sizeStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
+      if (!match) return total;
+      
+      const value = parseFloat(match[1]);
+      const unit = match[2].toUpperCase();
+      
+      if (unit === 'GB') {
+        return total + (value * 1024); // Convert GB to MB
+      } else if (unit === 'MB') {
+        return total + value;
+      }
+      
+      return total;
+    }, 0);
+    
+    if (totalSizeInMB === 0) return null;
+    
+    // Format total size
+    if (totalSizeInMB >= 1024) {
+      return `${(totalSizeInMB / 1024).toFixed(1)} GB`;
+    } else {
+      return `${totalSizeInMB.toFixed(0)} MB`;
+    }
+  };
 
   // Function to check if a game is favorited on other platforms
   const getCrossPlatformInfo = (game) => {
@@ -308,6 +380,13 @@ function App() {
       setIsLoadingMore(false);
     }
   }, [platformData]);
+
+  // Load game sizes when Nintendo Switch favorites are available
+  useEffect(() => {
+    if (selectedPlatform === '130' && isAuthenticated && favorites.length > 0) {
+      loadGameSizes();
+    }
+  }, [selectedPlatform, isAuthenticated, favorites.length]);
 
   const handlePlatformChange = (platformId) => {
     setSelectedPlatform(platformId);
@@ -1029,6 +1108,45 @@ function App() {
         />
       )}
 
+      {/* Nintendo Switch Total Download Size */}
+      {isAuthenticated && selectedPlatform === '130' && favorites.length > 0 && (
+        <div style={{ 
+          backgroundColor: 'white', 
+          padding: '15px', 
+          borderRadius: '8px', 
+          marginBottom: '20px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ margin: '0 0 5px 0', color: '#333' }}>💾 Total Download Size</h3>
+              {isLoadingSizes ? (
+                <p style={{ margin: '0', color: '#666' }}>Loading game sizes...</p>
+              ) : (
+                <p style={{ margin: '0', color: '#666' }}>
+                  {calculateTotalSize() ? `${calculateTotalSize()} for ${favorites.length} games` : 'Game sizes not available'}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={loadGameSizes}
+              disabled={isLoadingSizes}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: isLoadingSizes ? '#ccc' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: isLoadingSizes ? 'not-allowed' : 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              {isLoadingSizes ? 'Loading...' : 'Refresh Sizes'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {selectedPlatform && (
         <div className="card">
           <div className="section-header">
@@ -1112,6 +1230,7 @@ function App() {
                   viewMode={viewMode}
                   isAuthenticated={isAuthenticated}
                   crossPlatformInfo={getCrossPlatformInfo(game)}
+                  gameSize={gameSizes[game.id]}
                 />
               ))}
               </div>

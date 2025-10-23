@@ -263,6 +263,56 @@ app.get('/api/game/:gameId', async (req, res) => {
   }
 });
 
+// Nintendo.com scraping endpoint for game file sizes
+app.get('/api/nintendo-size/:gameName', async (req, res) => {
+  try {
+    const { gameName } = req.params;
+    
+    console.log(`🔍 Searching Nintendo.com for: ${gameName}`);
+    
+    // Search Nintendo.com for the game
+    const searchUrl = `https://www.nintendo.com/search/?q=${encodeURIComponent(gameName)}&f=software`;
+    
+    const response = await axios.get(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    // Parse the HTML to find game file size
+    const html = response.data;
+    
+    // Look for game file size pattern
+    const sizeMatch = html.match(/Game file size[^>]*>([^<]+)</i);
+    
+    if (sizeMatch) {
+      const fileSize = sizeMatch[1].trim();
+      console.log(`✅ Found file size for ${gameName}: ${fileSize}`);
+      res.json({ 
+        gameName, 
+        fileSize,
+        found: true 
+      });
+    } else {
+      console.log(`❌ File size not found for ${gameName}`);
+      res.json({ 
+        gameName, 
+        fileSize: null,
+        found: false 
+      });
+    }
+    
+  } catch (error) {
+    console.error(`Error scraping Nintendo.com for ${req.params.gameName}:`, error.message);
+    res.json({ 
+      gameName: req.params.gameName, 
+      fileSize: null,
+      found: false,
+      error: error.message 
+    });
+  }
+});
+
 // Database API endpoints
 app.get('/api/platform-data', async (req, res) => {
   try {
