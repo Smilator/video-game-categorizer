@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Upload, Heart, Trash2, Loader2, RotateCcw, Eye, FileText, LogIn, LogOut, User, Zap } from 'lucide-react';
+import { Download, Upload, Heart, Trash2, Loader2, RotateCcw, FileText, LogIn, LogOut, User, Zap } from 'lucide-react';
 import igdbApi from './services/igdbApi';
 import databaseApi from './services/databaseApi';
 import GameCard from './components/GameCard';
 import Stats from './components/Stats';
-import Lists from './components/Lists';
 
 function App() {
   const [platforms, setPlatforms] = useState([]);
@@ -26,7 +25,6 @@ function App() {
   const [processedGames, setProcessedGames] = useState(new Set());
   
   // UI state
-  const [showLists, setShowLists] = useState(false);
   const [viewMode, setViewMode] = useState('all');
   const [showCollectedOnly, setShowCollectedOnly] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -419,7 +417,6 @@ function App() {
     setGames([]);
     setFetchedGameIds(new Set()); // Reset fetched games when changing platforms
     setError(null);
-    setShowLists(false); // Hide lists when changing platforms
     setShowCollectedOnly(false); // Reset collected filter when changing platforms
     
     if (platformId) {
@@ -1083,15 +1080,6 @@ function App() {
               Clear Platform Data
             </button>
             
-            {(favorites.length > 0 || deleted.length > 0) && (
-              <button 
-                className="btn btn-secondary" 
-                onClick={() => setShowLists(!showLists)}
-              >
-                <Eye size={16} />
-                {showLists ? 'Hide' : 'Show'} Lists
-              </button>
-            )}
             
             {selectedPlatform && (
               <div className="view-mode-buttons">
@@ -1414,14 +1402,6 @@ function App() {
         </div>
       )}
 
-      {isAuthenticated && showLists && (favorites.length > 0 || deleted.length > 0) && (
-        <Lists 
-          favorites={favorites} 
-          deleted={deleted} 
-          onRevert={handleRevertGame}
-          gameSizes={gameSizes}
-        />
-      )}
 
       {loading && !xmlImportProgress.isImporting && (
         <div className="loading">
