@@ -318,8 +318,11 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       
       const directHtml = directResponse.data;
       
-      // Look for game file size using the specific CSS class
-      let sizeMatch = directHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
+      // Look for game file size using multiple patterns
+      let sizeMatch = null;
+      
+      // Try the specific CSS class first
+      sizeMatch = directHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
       
       if (!sizeMatch) {
         // Try alternative pattern for the same class
@@ -327,8 +330,28 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       }
       
       if (!sizeMatch) {
-        // Fallback: try to find Game file size section
+        // Try to find any element with the class containing "fHqHTF"
+        sizeMatch = directHtml.match(/class="[^"]*fHqHTF[^"]*"[^>]*>([^<]+)</i);
+      }
+      
+      if (!sizeMatch) {
+        // Try to find "Game file size" section
         sizeMatch = directHtml.match(/Game file size[^>]*>([^<]+)</i);
+      }
+      
+      if (!sizeMatch) {
+        // Try to find Nintendo Switch specific size
+        sizeMatch = directHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
+      }
+      
+      if (!sizeMatch) {
+        // Try to find any size pattern in the HTML
+        sizeMatch = directHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+      }
+      
+      // Debug: log a sample of the HTML to see what we're working with
+      if (!sizeMatch) {
+        console.log(`🔍 No size found for ${gameName}, HTML sample:`, directHtml.substring(0, 1000));
       }
       
       if (sizeMatch) {
@@ -398,8 +421,11 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
     
     const productHtml = productResponse.data;
     
-    // Look for game file size using the specific CSS class
-    let sizeMatch = productHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
+    // Look for game file size using multiple patterns
+    let sizeMatch = null;
+    
+    // Try the specific CSS class first
+    sizeMatch = productHtml.match(/sc-1237z5p-4 fHqHTF[^>]*>([^<]+)</i);
     
     if (!sizeMatch) {
       // Try alternative pattern for the same class
@@ -407,8 +433,28 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
     }
     
     if (!sizeMatch) {
-      // Fallback: try to find Game file size section
+      // Try to find any element with the class containing "fHqHTF"
+      sizeMatch = productHtml.match(/class="[^"]*fHqHTF[^"]*"[^>]*>([^<]+)</i);
+    }
+    
+    if (!sizeMatch) {
+      // Try to find "Game file size" section
       sizeMatch = productHtml.match(/Game file size[^>]*>([^<]+)</i);
+    }
+    
+    if (!sizeMatch) {
+      // Try to find Nintendo Switch specific size
+      sizeMatch = productHtml.match(/Nintendo Switch[^>]*>([^<]*\d+(?:\.\d+)?\s*(?:GB|MB)[^<]*)/i);
+    }
+    
+    if (!sizeMatch) {
+      // Try to find any size pattern in the HTML
+      sizeMatch = productHtml.match(/(\d+(?:\.\d+)?\s*(?:GB|MB))/i);
+    }
+    
+    // Debug: log a sample of the HTML to see what we're working with
+    if (!sizeMatch) {
+      console.log(`🔍 No size found for ${gameName} on product page, HTML sample:`, productHtml.substring(0, 1000));
     }
     
     if (sizeMatch) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Trash2, ExternalLink, RotateCcw, Edit2, Check, X } from 'lucide-react';
+import { Heart, Trash2, ExternalLink, RotateCcw, Edit2, Check, X, RefreshCw } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
 
 // Function to normalize game names for Nintendo.com URLs
@@ -12,9 +12,10 @@ function normalizeGameNameForSearch(gameName) {
     .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
 }
 
-function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize, onEditGameSize, selectedPlatform }) {
+function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize, onEditGameSize, selectedPlatform, onScrapeGameSize }) {
   const [isEditingSize, setIsEditingSize] = useState(false);
   const [editedSize, setEditedSize] = useState(gameSize || '');
+  const [isScraping, setIsScraping] = useState(false);
   
   const coverUrl = game.cover 
     ? igdbApi.getCoverImageUrl(game.cover.image_id, 'cover_big')
@@ -30,6 +31,17 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
   const handleCancelEdit = () => {
     setEditedSize(gameSize || '');
     setIsEditingSize(false);
+  };
+  
+  const handleScrapeSize = async () => {
+    if (onScrapeGameSize) {
+      setIsScraping(true);
+      try {
+        await onScrapeGameSize(game.name);
+      } finally {
+        setIsScraping(false);
+      }
+    }
   };
 
   return (
@@ -127,6 +139,21 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
                   title="Edit size"
                 >
                   <Edit2 size={12} color="#666" />
+                </button>
+                <button
+                  onClick={handleScrapeSize}
+                  disabled={isScraping}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: isScraping ? 'not-allowed' : 'pointer',
+                    padding: '2px',
+                    borderRadius: '3px',
+                    opacity: isScraping ? 0.5 : 1
+                  }}
+                  title={isScraping ? "Scraping..." : "Scrape size from Nintendo.com"}
+                >
+                  <RefreshCw size={12} color={isScraping ? "#999" : "#666"} className={isScraping ? "animate-spin" : ""} />
                 </button>
               </div>
             )}

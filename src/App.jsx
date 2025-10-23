@@ -188,6 +188,27 @@ function App() {
     }
   };
 
+  const handleScrapeGameSize = async (gameName) => {
+    try {
+      console.log(`🔄 Scraping size for individual game: ${gameName}`);
+      const result = await databaseApi.getNintendoGameSize(gameName);
+      
+      if (result.found && result.fileSize) {
+        // Update local state
+        setGameSizes(prev => ({
+          ...prev,
+          [gameName]: result.fileSize
+        }));
+        
+        console.log(`✅ Successfully scraped size for ${gameName}: ${result.fileSize}`);
+      } else {
+        console.log(`❌ No size found for ${gameName}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error scraping size for ${gameName}:`, error);
+    }
+  };
+
   // Function to check if a game is favorited on other platforms
   const getCrossPlatformInfo = (game) => {
     if (!game || !game.id || !selectedPlatform) return null;
@@ -1314,6 +1335,7 @@ function App() {
                   crossPlatformInfo={getCrossPlatformInfo(game)}
                   gameSize={gameSizes[game.name]}
                   onEditGameSize={handleEditGameSize}
+                  onScrapeGameSize={handleScrapeGameSize}
                   selectedPlatform={selectedPlatform}
                 />
               ))}
