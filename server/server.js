@@ -26,6 +26,29 @@ let tokenExpiry = null;
 
 const pool = new Pool({ connectionString: config.DATABASE_URL, ssl: config.DATABASE_URL && config.DATABASE_URL.includes('railway') ? { rejectUnauthorized: false } : false });
 
+// Create game_sizes table if it doesn't exist
+async function createGameSizesTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS game_sizes (
+        id SERIAL PRIMARY KEY,
+        game_name VARCHAR(255) NOT NULL,
+        platform_id VARCHAR(50) NOT NULL,
+        file_size VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(game_name, platform_id)
+      )
+    `);
+    console.log('✅ Game sizes table ready');
+  } catch (error) {
+    console.error('❌ Error creating game_sizes table:', error);
+  }
+}
+
+// Initialize database tables
+createGameSizesTable();
+
 // Get IGDB access token
 async function getAccessToken() {
   if (accessToken && tokenExpiry && Date.now() < tokenExpiry) {
@@ -314,6 +337,20 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       if (sizeMatch) {
         const fileSize = sizeMatch[1].trim();
         console.log(`✅ Found size for ${gameName} via direct URL: ${fileSize}`);
+        
+        // Save to database
+        try {
+          await pool.query(`
+            INSERT INTO game_sizes (game_name, platform_id, file_size, updated_at)
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+            ON CONFLICT (game_name, platform_id)
+            DO UPDATE SET file_size = $3, updated_at = CURRENT_TIMESTAMP
+          `, [gameName, '130', fileSize]);
+          console.log(`💾 Saved ${gameName} size to database: ${fileSize}`);
+        } catch (dbError) {
+          console.error(`❌ Error saving ${gameName} size to database:`, dbError);
+        }
+        
         res.json({ gameName, fileSize, found: true, productUrl: directProductUrl });
         return;
       }
@@ -372,6 +409,20 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
     if (sizeMatch) {
       const fileSize = sizeMatch[1].trim();
       console.log(`✅ Found size for ${gameName}: ${fileSize}`);
+      
+      // Save to database
+      try {
+        await pool.query(`
+          INSERT INTO game_sizes (game_name, platform_id, file_size, updated_at)
+          VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+          ON CONFLICT (game_name, platform_id)
+          DO UPDATE SET file_size = $3, updated_at = CURRENT_TIMESTAMP
+        `, [gameName, '130', fileSize]);
+        console.log(`💾 Saved ${gameName} size to database: ${fileSize}`);
+      } catch (dbError) {
+        console.error(`❌ Error saving ${gameName} size to database:`, dbError);
+      }
+      
       res.json({ gameName, fileSize, found: true, productUrl });
     } else {
       console.log(`❌ No size found for ${gameName} on product page`);
@@ -386,6 +437,52 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       found: false,
       error: error.message 
     });
+  }
+});
+
+// Save game size to database
+app.post('/api/game-size', async (req, res) => {
+  try {
+    const { gameName, platformId, fileSize } = req.body;
+    
+    console.log(`💾 Saving game size: ${gameName} (${platformId}) = ${fileSize}`);
+    
+    await pool.query(`
+      INSERT INTO game_sizes (game_name, platform_id, file_size, updated_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      ON CONFLICT (game_name, platform_id)
+      DO UPDATE SET file_size = $3, updated_at = CURRENT_TIMESTAMP
+    `, [gameName, platformId, fileSize]);
+    
+    res.json({ success: true, message: 'Game size saved' });
+  } catch (error) {
+    console.error('❌ Error saving game size:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Load game sizes from database
+app.get('/api/game-sizes/:platformId', async (req, res) => {
+  try {
+    const { platformId } = req.params;
+    
+    console.log(`📥 Loading game sizes for platform: ${platformId}`);
+    
+    const result = await pool.query(`
+      SELECT game_name, file_size FROM game_sizes 
+      WHERE platform_id = $1
+    `, [platformId]);
+    
+    const gameSizes = {};
+    result.rows.forEach(row => {
+      gameSizes[row.game_name] = row.file_size;
+    });
+    
+    console.log(`✅ Loaded ${result.rows.length} game sizes for platform ${platformId}`);
+    res.json(gameSizes);
+  } catch (error) {
+    console.error('❌ Error loading game sizes:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

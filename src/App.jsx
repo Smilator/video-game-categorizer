@@ -56,33 +56,50 @@ function App() {
     console.log('Games to process:', currentFavorites.map(g => g.name));
     
     try {
-      const sizePromises = currentFavorites.map(async (game) => {
-        console.log(`🔍 Fetching size for: ${game.name}`);
-        try {
-          const result = await databaseApi.getNintendoGameSize(game.name);
-          console.log(`📊 Result for ${game.name}:`, result);
-          return { gameId: game.id, gameName: game.name, ...result };
-        } catch (error) {
-          console.error(`❌ Failed to get size for ${game.name}:`, error);
-          return { gameId: game.id, gameName: game.name, found: false, fileSize: null };
-        }
-      });
+      // First, try to load existing sizes from database
+      console.log(`📥 Loading existing sizes from database...`);
+      const existingSizes = await databaseApi.loadGameSizes(selectedPlatform);
+      console.log(`📊 Found ${Object.keys(existingSizes).length} existing sizes in database:`, existingSizes);
       
-      const results = await Promise.all(sizePromises);
-      const newGameSizes = {};
+      setGameSizes(existingSizes);
       
-      results.forEach(result => {
-        console.log(`📊 Processing result for ${result.gameName}:`, result);
-        if (result.found && result.fileSize) {
-          newGameSizes[result.gameId] = result.fileSize;
-          console.log(`✅ Added size for ${result.gameName}: ${result.fileSize}`);
-        } else {
-          console.log(`❌ No size found for ${result.gameName}`);
-        }
-      });
+      // Then, check which games don't have sizes and scrape for them
+      const gamesWithoutSizes = currentFavorites.filter(game => !existingSizes[game.name]);
+      console.log(`🔍 ${gamesWithoutSizes.length} games need size scraping:`, gamesWithoutSizes.map(g => g.name));
       
-      setGameSizes(newGameSizes);
-      console.log(`✅ Loaded sizes for ${Object.keys(newGameSizes).length} games:`, newGameSizes);
+      if (gamesWithoutSizes.length > 0) {
+        console.log(`🔄 Scraping sizes for ${gamesWithoutSizes.length} games...`);
+        
+        const sizePromises = gamesWithoutSizes.map(async (game) => {
+          console.log(`🔍 Fetching size for: ${game.name}`);
+          try {
+            const result = await databaseApi.getNintendoGameSize(game.name);
+            console.log(`📊 Result for ${game.name}:`, result);
+            return { gameName: game.name, ...result };
+          } catch (error) {
+            console.error(`❌ Failed to get size for ${game.name}:`, error);
+            return { gameName: game.name, found: false, fileSize: null };
+          }
+        });
+        
+        const results = await Promise.all(sizePromises);
+        const newGameSizes = { ...existingSizes };
+        
+        results.forEach(result => {
+          console.log(`📊 Processing result for ${result.gameName}:`, result);
+          if (result.found && result.fileSize) {
+            newGameSizes[result.gameName] = result.fileSize;
+            console.log(`✅ Added size for ${result.gameName}: ${result.fileSize}`);
+          } else {
+            console.log(`❌ No size found for ${result.gameName}`);
+          }
+        });
+        
+        setGameSizes(newGameSizes);
+        console.log(`✅ Updated sizes for ${Object.keys(newGameSizes).length} games total`);
+      } else {
+        console.log(`✅ All games already have sizes in database`);
+      }
     } catch (error) {
       console.error('❌ Error loading game sizes:', error);
     } finally {
@@ -124,12 +141,26 @@ function App() {
     }
   };
 
-  const handleEditGameSize = (gameName, newSize) => {
-    setGameSizes(prev => ({
-      ...prev,
-      [gameName]: newSize
-    }));
-    console.log(`📝 Manually edited size for ${gameName}: ${newSize}`);
+  const handleEditGameSize = async (gameName, newSize) => {
+    try {
+      // Save to database
+      await databaseApi.saveGameSize(gameName, selectedPlatform, newSize);
+      
+      // Update local state
+      setGameSizes(prev => ({
+        ...prev,
+        [gameName]: newSize
+      }));
+      
+      console.log(`📝 Manually edited and saved size for ${gameName}: ${newSize}`);
+    } catch (error) {
+      console.error(`❌ Error saving manual edit for ${gameName}:`, error);
+      // Still update local state even if database save fails
+      setGameSizes(prev => ({
+        ...prev,
+        [gameName]: newSize
+      }));
+    }
   };
 
   // Function to check if a game is favorited on other platforms
@@ -1258,6 +1289,7 @@ function App() {
                   crossPlatformInfo={getCrossPlatformInfo(game)}
                   gameSize={gameSizes[game.name]}
                   onEditGameSize={handleEditGameSize}
+                  selectedPlatform={selectedPlatform}
                 />
               ))}
               </div>

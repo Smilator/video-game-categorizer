@@ -87,6 +87,42 @@ class DatabaseAPI {
       throw new Error('Failed to get game size from Nintendo.com');
     }
   }
+
+  async saveGameSize(gameName, platformId, fileSize) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/game-size`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ gameName, platformId, fileSize }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error saving game size:', error);
+      throw new Error('Failed to save game size to database');
+    }
+  }
+
+  async loadGameSizes(platformId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/game-sizes/${platformId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error loading game sizes:', error);
+      throw new Error('Failed to load game sizes from database');
+    }
+  }
 }
 
 export default new DatabaseAPI(); 

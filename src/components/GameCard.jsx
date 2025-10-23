@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Heart, Trash2, ExternalLink, RotateCcw, Edit2, Check, X } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
 
-function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize, onEditGameSize }) {
+function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isCollected, viewMode, isAuthenticated, crossPlatformInfo, gameSize, onEditGameSize, selectedPlatform }) {
   const [isEditingSize, setIsEditingSize] = useState(false);
   const [editedSize, setEditedSize] = useState(gameSize || '');
   
@@ -54,7 +54,7 @@ function GameCard({ game, onSave, onDelete, onRevert, onToggleCollected, isColle
         )}
         
         {/* Game file size (Nintendo Switch only) */}
-        {(gameSize || isEditingSize) && (
+        {(selectedPlatform === '130' && (gameSize || isEditingSize || !gameSize)) && (
           <div className="game-size-chip">
             {isEditingSize ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
