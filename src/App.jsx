@@ -34,9 +34,9 @@ function App() {
   const [fetchedGameIds, setFetchedGameIds] = useState(new Set());
   const [currentBatchNumber, setCurrentBatchNumber] = useState(1);
 
-  // Helper functions for favorites and deleted lists
-  const favorites = selectedPlatform ? (platformData[selectedPlatform]?.favorites || []) : [];
-  const deleted = selectedPlatform ? (platformData[selectedPlatform]?.deleted || []) : [];
+  // Helper functions for favorites and deleted lists (sorted alphabetically)
+  const favorites = selectedPlatform ? (platformData[selectedPlatform]?.favorites || []).sort((a, b) => a.name.localeCompare(b.name)) : [];
+  const deleted = selectedPlatform ? (platformData[selectedPlatform]?.deleted || []).sort((a, b) => a.name.localeCompare(b.name)) : [];
 
   // Function to check if a game is favorited on other platforms
   const getCrossPlatformInfo = (game) => {
@@ -367,9 +367,9 @@ function App() {
       let newDeleted = currentData.deleted;
       
       if (action === 'save') {
-        newFavorites = [...currentData.favorites, game];
+        newFavorites = [...currentData.favorites, game].sort((a, b) => a.name.localeCompare(b.name));
       } else if (action === 'delete') {
-        newDeleted = [...currentData.deleted, game];
+        newDeleted = [...currentData.deleted, game].sort((a, b) => a.name.localeCompare(b.name));
       }
       
       // Update UI immediately (optimistic update)
@@ -425,6 +425,7 @@ function App() {
         // Add to favorites (avoid duplicates)
         if (!newFavorites.some(g => g.id === game.id)) {
           newFavorites.push(game);
+          newFavorites.sort((a, b) => a.name.localeCompare(b.name));
           console.log('✅ Added to favorites, new favorites count:', newFavorites.length);
         }
         // DO NOT add to main games list when moving to favorites
@@ -432,6 +433,7 @@ function App() {
         // Add to deleted (avoid duplicates)
         if (!newDeleted.some(g => g.id === game.id)) {
           newDeleted.push(game);
+          newDeleted.sort((a, b) => a.name.localeCompare(b.name));
           console.log('✅ Added to deleted, new deleted count:', newDeleted.length);
         }
         // DO NOT add to main games list when moving to deleted
