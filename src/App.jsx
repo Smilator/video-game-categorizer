@@ -434,10 +434,11 @@ function App() {
           console.log('✅ Added to deleted, new deleted count:', newDeleted.length);
         }
       } else if (toList === 'all') {
-        // Add back to main list (unjudged games)
+        // Add back to main list (unjudged games) - only if we're switching to all games view
         setGames(prev => [game, ...prev]);
         console.log('✅ Added game back to main list');
       }
+      // Note: When moving between lists (favorites <-> deleted), we don't add to main games list
       
       // Update UI immediately (optimistic update)
       setPlatformData(prev => ({
@@ -449,9 +450,16 @@ function App() {
       }));
       
       // Only switch to "All Games" view if moving to unjudged games
+      // When moving between lists (favorites <-> deleted), stay in current view
       if (toList === 'all' && viewMode !== 'all') {
         setViewMode('all');
         console.log('✅ Switched to All Games view');
+      } else if (toList === 'deleted' && viewMode === 'favorites') {
+        // Moving from favorites to deleted - stay in favorites view
+        console.log('✅ Moved to deleted, staying in favorites view');
+      } else if (toList === 'favorites' && viewMode === 'deleted') {
+        // Moving from deleted to favorites - stay in deleted view
+        console.log('✅ Moved to favorites, staying in deleted view');
       }
       
       // Save to database in background
