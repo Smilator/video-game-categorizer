@@ -1,8 +1,9 @@
 import React from 'react';
 import { Heart, Trash2, RotateCcw } from 'lucide-react';
 import igdbApi from '../services/igdbApi';
+import GameCard from './GameCard';
 
-function Lists({ favorites, deleted, onRevert }) {
+function Lists({ favorites, deleted, onRevert, gameSizes }) {
   const renderGameList = (games, type) => {
     if (games.length === 0) {
       return (
@@ -12,42 +13,20 @@ function Lists({ favorites, deleted, onRevert }) {
       );
     }
 
-    return games.map(game => {
-      const coverUrl = game.cover 
-        ? igdbApi.getCoverImageUrl(game.cover.image_id, 'cover_small')
-        : null;
-
-      return (
-        <div key={game.id} className="list-item">
-          <div className="list-item-cover">
-            {coverUrl ? (
-              <img 
-                src={coverUrl} 
-                alt={`Cover for ${game.name}`}
-                loading="lazy"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div className="placeholder" style={{ display: coverUrl ? 'none' : 'flex' }}>
-              No Cover
-            </div>
-          </div>
-          <div className="list-item-name">{game.name}</div>
-          <button
-            className="btn btn-secondary"
-            onClick={() => onRevert(game, type)}
-            title={`Revert ${game.name} back to judging list`}
-            style={{ padding: '4px 8px', fontSize: '12px', minWidth: 'auto' }}
-          >
-            <RotateCcw size={12} />
-            Revert
-          </button>
-        </div>
-      );
-    });
+    return (
+      <div className="game-grid">
+        {games.map(game => (
+          <GameCard
+            key={game.id}
+            game={game}
+            onRevert={(game, fromList, toList) => onRevert(game, fromList, toList)}
+            viewMode={type}
+            isAuthenticated={true}
+            gameSize={gameSizes?.[game.id]}
+          />
+        ))}
+      </div>
+    );
   };
 
   return (

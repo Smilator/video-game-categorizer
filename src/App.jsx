@@ -42,18 +42,30 @@ function App() {
 
   // Function to load game sizes for Nintendo Switch
   const loadGameSizes = async () => {
-    if (selectedPlatform !== '130' || !isAuthenticated || favorites.length === 0) return;
+    if (selectedPlatform !== '130' || !isAuthenticated) {
+      console.log('❌ Cannot load sizes: selectedPlatform =', selectedPlatform, 'isAuthenticated =', isAuthenticated);
+      return;
+    }
+    
+    const currentFavorites = platformData[selectedPlatform]?.favorites || [];
+    if (currentFavorites.length === 0) {
+      console.log('❌ Cannot load sizes: no favorites found');
+      return;
+    }
     
     setIsLoadingSizes(true);
-    console.log('🔍 Loading game sizes for Nintendo Switch favorites...');
+    console.log(`🔍 Loading game sizes for ${currentFavorites.length} Nintendo Switch favorites...`);
+    console.log('Games to process:', currentFavorites.map(g => g.name));
     
     try {
-      const sizePromises = favorites.map(async (game) => {
+      const sizePromises = currentFavorites.map(async (game) => {
+        console.log(`🔍 Fetching size for: ${game.name}`);
         try {
           const result = await databaseApi.getNintendoGameSize(game.name);
+          console.log(`📊 Result for ${game.name}:`, result);
           return { gameId: game.id, gameName: game.name, ...result };
         } catch (error) {
-          console.error(`Failed to get size for ${game.name}:`, error);
+          console.error(`❌ Failed to get size for ${game.name}:`, error);
           return { gameId: game.id, gameName: game.name, found: false, fileSize: null };
         }
       });
@@ -62,15 +74,19 @@ function App() {
       const newGameSizes = {};
       
       results.forEach(result => {
+        console.log(`📊 Processing result for ${result.gameName}:`, result);
         if (result.found && result.fileSize) {
           newGameSizes[result.gameId] = result.fileSize;
+          console.log(`✅ Added size for ${result.gameName}: ${result.fileSize}`);
+        } else {
+          console.log(`❌ No size found for ${result.gameName}`);
         }
       });
       
       setGameSizes(newGameSizes);
-      console.log(`✅ Loaded sizes for ${Object.keys(newGameSizes).length} games`);
+      console.log(`✅ Loaded sizes for ${Object.keys(newGameSizes).length} games:`, newGameSizes);
     } catch (error) {
-      console.error('Error loading game sizes:', error);
+      console.error('❌ Error loading game sizes:', error);
     } finally {
       setIsLoadingSizes(false);
     }
@@ -384,9 +400,19 @@ function App() {
   // Load game sizes when Nintendo Switch favorites are available
   useEffect(() => {
     if (selectedPlatform === '130' && isAuthenticated && favorites.length > 0) {
+      console.log(`🔄 Nintendo Switch selected with ${favorites.length} favorites, loading sizes...`);
       loadGameSizes();
     }
   }, [selectedPlatform, isAuthenticated, favorites.length]);
+
+  // Also load sizes when platform data changes (for existing favorites)
+  useEffect(() => {
+    if (selectedPlatform === '130' && isAuthenticated && platformData[selectedPlatform]?.favorites?.length > 0) {
+      const currentFavorites = platformData[selectedPlatform].favorites;
+      console.log(`🔄 Platform data updated with ${currentFavorites.length} favorites, loading sizes...`);
+      loadGameSizes();
+    }
+  }, [platformData, selectedPlatform, isAuthenticated]);
 
   const handlePlatformChange = (platformId) => {
     setSelectedPlatform(platformId);
@@ -1129,7 +1155,11 @@ function App() {
               )}
             </div>
             <button
-              onClick={loadGameSizes}
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered');
+                setGameSizes({}); // Clear existing sizes
+                loadGameSizes();
+              }}
               disabled={isLoadingSizes}
               style={{
                 padding: '8px 16px',
@@ -1389,6 +1419,7 @@ function App() {
           favorites={favorites} 
           deleted={deleted} 
           onRevert={handleRevertGame}
+          gameSizes={gameSizes}
         />
       )}
 
