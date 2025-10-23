@@ -399,6 +399,7 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
         
         res.json({ gameName, fileSize, found: true, productUrl: directProductUrl });
         return;
+        }
       }
     } catch (directError) {
       console.log(`❌ Direct URL failed for ${gameName}, trying search...`);
@@ -518,6 +519,7 @@ app.get('/api/nintendo-size/:gameName', async (req, res) => {
       }
       
       res.json({ gameName, fileSize, found: true, productUrl });
+      }
     } else {
       console.log(`❌ No size found for ${gameName} on product page`);
       res.json({ gameName, fileSize: null, found: false, error: 'No size found on product page', productUrl });
