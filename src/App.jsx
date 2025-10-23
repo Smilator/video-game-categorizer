@@ -427,18 +427,19 @@ function App() {
           newFavorites.push(game);
           console.log('✅ Added to favorites, new favorites count:', newFavorites.length);
         }
+        // DO NOT add to main games list when moving to favorites
       } else if (toList === 'deleted') {
         // Add to deleted (avoid duplicates)
         if (!newDeleted.some(g => g.id === game.id)) {
           newDeleted.push(game);
           console.log('✅ Added to deleted, new deleted count:', newDeleted.length);
         }
+        // DO NOT add to main games list when moving to deleted
       } else if (toList === 'all') {
-        // Add back to main list (unjudged games) - only if we're switching to all games view
+        // Add back to main list (unjudged games) - only when moving to unjudged games
         setGames(prev => [game, ...prev]);
         console.log('✅ Added game back to main list');
       }
-      // Note: When moving between lists (favorites <-> deleted), we don't add to main games list
       
       // Update UI immediately (optimistic update)
       setPlatformData(prev => ({
@@ -1103,7 +1104,7 @@ function App() {
                   game={game}
                   onSave={() => handleGameAction(game, 'save')}
                   onDelete={() => handleGameAction(game, 'delete')}
-                  onRevert={(game, fromList) => handleRevertGame(game, fromList)}
+                  onRevert={(game, fromList, toList) => handleRevertGame(game, fromList, toList)}
                   onToggleCollected={() => toggleCollectedStatus(game.id)}
                   isCollected={game.collected}
                   viewMode={viewMode}
