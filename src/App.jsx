@@ -45,6 +45,12 @@ function App() {
       return;
     }
     
+    // Don't load sizes if we're in the middle of batch loading
+    if (loading) {
+      console.log('❌ Cannot load sizes: batch loading in progress');
+      return;
+    }
+    
     const currentFavorites = platformData[selectedPlatform]?.favorites || [];
     if (currentFavorites.length === 0) {
       console.log('❌ Cannot load sizes: no favorites found');
@@ -434,22 +440,22 @@ function App() {
     }
   }, [platformData]);
 
-  // Load game sizes when Nintendo Switch favorites are available
+  // Load game sizes when Nintendo Switch favorites are available - but only when viewing favorites
   useEffect(() => {
-    if (selectedPlatform === '130' && isAuthenticated && favorites.length > 0) {
-      console.log(`🔄 Nintendo Switch selected with ${favorites.length} favorites, loading sizes...`);
+    if (selectedPlatform === '130' && isAuthenticated && viewMode === 'favorites' && favorites.length > 0) {
+      console.log(`🔄 Nintendo Switch favorites view with ${favorites.length} favorites, loading sizes...`);
       loadGameSizes();
     }
-  }, [selectedPlatform, isAuthenticated, favorites.length]);
+  }, [selectedPlatform, isAuthenticated, viewMode, favorites.length]);
 
-  // Also load sizes when platform data changes (for existing favorites)
+  // Also load sizes when platform data changes (for existing favorites) - but only when viewing favorites
   useEffect(() => {
-    if (selectedPlatform === '130' && isAuthenticated && platformData[selectedPlatform]?.favorites?.length > 0) {
+    if (selectedPlatform === '130' && isAuthenticated && viewMode === 'favorites' && platformData[selectedPlatform]?.favorites?.length > 0) {
       const currentFavorites = platformData[selectedPlatform].favorites;
       console.log(`🔄 Platform data updated with ${currentFavorites.length} favorites, loading sizes...`);
       loadGameSizes();
     }
-  }, [platformData, selectedPlatform, isAuthenticated]);
+  }, [platformData, selectedPlatform, isAuthenticated, viewMode]);
 
   const handlePlatformChange = (platformId) => {
     setSelectedPlatform(platformId);
