@@ -245,7 +245,7 @@ function App() {
       let currentOffset = offset;
       let batchNumber = Math.floor(offset / 500) + 1;
       let foundUnjudgedGames = false;
-      const maxBatches = 50; // Prevent infinite loops
+      const maxBatches = 200; // Prevent infinite loops
       
       while (!foundUnjudgedGames && batchNumber <= maxBatches) {
         console.log(`📦 Loading Batch ${batchNumber} (offset: ${currentOffset})`);
@@ -1126,7 +1126,7 @@ function App() {
                 overflow: 'hidden'
               }}>
                 <div style={{
-                  width: `${Math.min((currentBatchNumber / 50) * 100, 100)}%`,
+                  width: `${Math.min((currentBatchNumber / 200) * 100, 100)}%`,
                   height: '8px',
                   backgroundColor: '#3b82f6',
                   transition: 'width 0.3s ease',
@@ -1134,7 +1134,7 @@ function App() {
                 }}></div>
               </div>
               <p style={{ fontSize: '12px', color: '#9ca3af', margin: '5px 0 0 0' }}>
-                Batch {currentBatchNumber} of up to 50
+                Batch {currentBatchNumber} of up to 200
               </p>
             </div>
           )}
