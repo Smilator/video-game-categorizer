@@ -166,6 +166,60 @@ function App() {
     }
   };
 
+  // Calculate total download size for collected games only
+  const calculateCollectedSize = () => {
+    if (selectedPlatform !== '130' || !isAuthenticated) return null;
+    
+    const collectedGames = favorites.filter(game => game.collected);
+    console.log('🧮 Calculating collected size for games:', collectedGames.length);
+    console.log('📊 Collected games:', collectedGames.map(g => g.name));
+    
+    const totalSizeInMB = collectedGames.reduce((total, game) => {
+      const sizeStr = gameSizes[game.name];
+      console.log(`🔍 Processing collected ${game.name}: size = "${sizeStr}"`);
+      
+      if (!sizeStr) {
+        console.log(`❌ No size for collected ${game.name}`);
+        return total;
+      }
+      
+      // Parse size string (e.g., "2.5 GB", "500 MB")
+      const match = sizeStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB)/i);
+      if (!match) {
+        console.log(`❌ Could not parse size for collected ${game.name}: "${sizeStr}"`);
+        return total;
+      }
+      
+      const value = parseFloat(match[1]);
+      const unit = match[2].toUpperCase();
+      
+      let sizeInMB = 0;
+      if (unit === 'GB') {
+        sizeInMB = value * 1024; // Convert GB to MB
+        console.log(`✅ Collected ${game.name}: ${value} GB = ${sizeInMB} MB`);
+      } else if (unit === 'MB') {
+        sizeInMB = value;
+        console.log(`✅ Collected ${game.name}: ${value} MB`);
+      }
+      
+      return total + sizeInMB;
+    }, 0);
+    
+    console.log(`🧮 Collected total size in MB: ${totalSizeInMB}`);
+    
+    if (totalSizeInMB === 0) return null;
+    
+    // Format total size
+    if (totalSizeInMB >= 1024) {
+      const totalGB = (totalSizeInMB / 1024).toFixed(1);
+      console.log(`📊 Final collected total: ${totalGB} GB`);
+      return `${totalGB} GB`;
+    } else {
+      console.log(`📊 Final collected total: ${totalSizeInMB.toFixed(0)} MB`);
+      return `${totalSizeInMB.toFixed(0)} MB`;
+    }
+  };
+
   const handleEditGameSize = async (gameName, newSize) => {
     try {
       // Save to database
@@ -1240,14 +1294,25 @@ function App() {
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h3 style={{ margin: '0 0 5px 0', color: '#333' }}>💾 Total Download Size</h3>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>💾 Download Size Statistics</h3>
               {isLoadingSizes ? (
                 <p style={{ margin: '0', color: '#666' }}>Loading game sizes...</p>
               ) : (
-                <p style={{ margin: '0', color: '#666' }}>
-                  {calculateTotalSize() ? `${calculateTotalSize()} for ${favorites.length} games` : 'Game sizes not available'}
-                </p>
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1', minWidth: '200px' }}>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '14px' }}>📦 Total Size (All Favorites)</p>
+                    <p style={{ margin: '0', color: '#333', fontWeight: 'bold' }}>
+                      {calculateTotalSize() ? `${calculateTotalSize()} for ${favorites.length} games` : 'Game sizes not available'}
+                    </p>
+                  </div>
+                  <div style={{ flex: '1', minWidth: '200px' }}>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '14px' }}>✅ Collected Size Only</p>
+                    <p style={{ margin: '0', color: '#10b981', fontWeight: 'bold' }}>
+                      {calculateCollectedSize() ? `${calculateCollectedSize()} for ${favorites.filter(game => game.collected).length} collected games` : 'No collected games or sizes not available'}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
             <button
@@ -1264,7 +1329,8 @@ function App() {
                 border: 'none',
                 borderRadius: '6px',
                 cursor: isLoadingSizes ? 'not-allowed' : 'pointer',
-                fontSize: '14px'
+                fontSize: '14px',
+                marginLeft: '15px'
               }}
             >
               {isLoadingSizes ? 'Loading...' : 'Refresh Sizes'}
