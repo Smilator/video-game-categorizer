@@ -980,9 +980,10 @@ function App() {
     };
     
     // Add file sizes for Nintendo Switch platform
-    if (selectedPlatform === '130' && Object.keys(gameSizes).length > 0) {
-      data.gameSizes = gameSizes;
-      console.log('📦 Including game sizes in export:', gameSizes);
+    if (selectedPlatform === '130') {
+      data.gameSizes = gameSizes || {};
+      console.log('📦 Nintendo Switch export - gameSizes:', gameSizes);
+      console.log('📦 Nintendo Switch export - gameSizes keys:', Object.keys(gameSizes || {}));
     }
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
