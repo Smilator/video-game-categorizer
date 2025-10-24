@@ -766,6 +766,22 @@ function App() {
           data.deleted || []
         );
         
+        // Handle game sizes for Nintendo Switch platform
+        if (selectedPlatform === '130' && data.gameSizes) {
+          console.log('📦 Importing game sizes:', data.gameSizes);
+          setGameSizes(data.gameSizes);
+          
+          // Save game sizes to database
+          try {
+            for (const [gameName, fileSize] of Object.entries(data.gameSizes)) {
+              await databaseApi.saveGameSize(gameName, selectedPlatform, fileSize);
+            }
+            console.log('✅ Game sizes saved to database');
+          } catch (error) {
+            console.error('❌ Error saving game sizes to database:', error);
+          }
+        }
+        
         // Reload all platform data from database to ensure consistency
         try {
           const refreshedData = await databaseApi.loadPlatformData();
@@ -962,6 +978,12 @@ function App() {
       favorites,
       deleted
     };
+    
+    // Add file sizes for Nintendo Switch platform
+    if (selectedPlatform === '130' && Object.keys(gameSizes).length > 0) {
+      data.gameSizes = gameSizes;
+      console.log('📦 Including game sizes in export:', gameSizes);
+    }
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
